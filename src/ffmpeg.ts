@@ -30,6 +30,9 @@ export function detectFfmpeg(customPath?: string): string {
 /**
  * Probe a media file for its stream information.
  * Runs `ffmpeg -i` and parses the stderr output.
+ *
+ * Kills ffmpeg early once the Duration header is parsed —
+ * this takes ~200ms instead of waiting for the full decode.
  */
 export async function probeMedia(
 	inputPath: string,
@@ -48,6 +51,26 @@ export async function probeMedia(
 		);
 
 		let stderr = "";
+		let resolved = false;
+
+		function tryResolve(): void {
+			if (resolved) return;
+			const hasDuration = /Duration:\s*\d+:\d+:\d+\.\d+/.test(stderr);
+			const hasStreams = /Stream #/.test(stderr);
+			if (hasDuration && hasStreams) {
+				resolved = true;
+				const durMatch = stderr.match(/Duration:\s*(\d+):(\d+):(\d+)\.(\d+)/);
+				const duration = durMatch
+					? Number(durMatch[1]) * 3600 +
+						Number(durMatch[2]) * 60 +
+						Number(durMatch[3])
+					: 0;
+				const hasVideo = /Stream.*Video:/i.test(stderr);
+				const hasAudio = /Stream.*Audio:/i.test(stderr);
+				proc.kill("SIGTERM");
+				resolve({ hasVideo, hasAudio, duration });
+			}
+		}
 
 		proc.stdout?.on("data", () => {
 			// discard stdout
@@ -55,26 +78,27 @@ export async function probeMedia(
 
 		proc.stderr?.on("data", (chunk: Buffer) => {
 			stderr += chunk.toString("utf-8");
+			tryResolve();
 		});
 
-		proc.on("error", (err) => reject(err));
-		proc.on("close", (_code) => {
-			// ffmpeg exits with code 1 when only probing (no output file),
-			// but stderr still contains the stream info.
-			const hasVideo = /Stream.*Video:/i.test(stderr);
-			const hasAudio = /Stream.*Audio:/i.test(stderr);
+		proc.on("error", (err) => {
+			if (!resolved) reject(err);
+		});
 
-			// Parse duration
-			let duration = 0;
-			const durMatch = stderr.match(/Duration:\s*(\d+):(\d+):(\d+)\.(\d+)/);
-			if (durMatch) {
-				duration =
-					Number(durMatch[1]) * 3600 +
-					Number(durMatch[2]) * 60 +
-					Number(durMatch[3]);
+		proc.on("close", () => {
+			if (!resolved) {
+				// ffmpeg finished before we killed it, or file has no duration
+				const durMatch = stderr.match(/Duration:\s*(\d+):(\d+):(\d+)\.(\d+)/);
+				const duration = durMatch
+					? Number(durMatch[1]) * 3600 +
+						Number(durMatch[2]) * 60 +
+						Number(durMatch[3])
+					: 0;
+				const hasVideo = /Stream.*Video:/i.test(stderr);
+				const hasAudio = /Stream.*Audio:/i.test(stderr);
+				resolved = true;
+				resolve({ hasVideo, hasAudio, duration });
 			}
-
-			resolve({ hasVideo, hasAudio, duration });
 		});
 	});
 }
@@ -92,7 +116,9 @@ export async function measureLoudness(
 	loudness: number,
 	lra: number,
 	truePeak: number,
+	totalDuration: number,
 	signal?: AbortSignal,
+	onProgress?: (percent: number) => void,
 ): Promise<LoudnessMeasurement | null> {
 	return new Promise((resolve, reject) => {
 		const proc = spawn(
@@ -118,7 +144,19 @@ export async function measureLoudness(
 		let stderr = "";
 
 		proc.stderr?.on("data", (chunk: Buffer) => {
-			stderr += chunk.toString("utf-8");
+			const text = chunk.toString("utf-8");
+			stderr += text;
+
+			if (onProgress && totalDuration > 0) {
+				const parsed = parseFfmpegProgress(text);
+				if (parsed?.duration !== undefined && parsed.duration > 0) {
+					const percent = Math.min(
+						100,
+						Math.round((parsed.duration / totalDuration) * 100),
+					);
+					onProgress(percent);
+				}
+			}
 		});
 
 		proc.on("error", (err) => reject(err));
