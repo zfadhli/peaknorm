@@ -1,0 +1,30 @@
+{
+	"compilerOptions": {
+		"target": "ESNext",
+		"module": "NodeNext",
+		"moduleResolution": "NodeNext",
+		"moduleDetection": "force",
+		"lib": ["ESNext"],
+		"jsx": "react-jsx",
+		"allowJs": false,
+		"types": ["bun"],
+
+		"strict": true,
+		"skipLibCheck": true,
+		"noFallthroughCasesInSwitch": true,
+		"noUncheckedIndexedAccess": true,
+		"noImplicitOverride": true,
+		"noUnusedLocals": true,
+		"noUnusedParameters": true,
+		"noPropertyAccessFromIndexSignature": false,
+		"verbatimModuleSyntax": true,
+		"isolatedDeclarations": true,
+
+		"declaration": true,
+		"declarationMap": true,
+		"noEmit": true,
+		"allowImportingTsExtensions": true
+	},
+	"include": ["src/**/*.ts", "test/**/*.ts"],
+	"exclude": ["node_modules", "dist"]
+}
