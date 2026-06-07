@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.2.2] - 2026-06-07
+
+### Added
+
+- Comprehensive `README.md` with CLI usage, programmatic API reference, pipeline
+  documentation, error handling guide, and development setup instructions
+
 ## [0.2.1] - 2026-06-07
 
 ### Fixed
@@ -40,6 +47,7 @@
 - TypeScript 6, tsdown build, Biome linting, Bun test
 - GitHub Actions CI + publish workflows
 
+[0.2.2]: https://github.com/zfadhli/peaknorm/compare/v0.2.1...v0.2.2
 [0.2.1]: https://github.com/zfadhli/peaknorm/compare/v0.2.0...v0.2.1
 [0.2.0]: https://github.com/zfadhli/peaknorm/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/zfadhli/peaknorm/releases/tag/v0.1.0
