@@ -163,14 +163,16 @@ export async function normalizeFile(
 			resolved.signal ?? undefined,
 		);
 
-		// Measure loudness (Pass 1)
+		// Measure loudness (Pass 1) — reports "analyzing" phase
 		const measurement = await measureLoudness(
 			ffmpegPath,
 			inputPath,
 			resolved.loudness,
 			resolved.lra,
 			resolved.truePeak,
+			probe.duration,
 			resolved.signal ?? undefined,
+			(pct) => resolved.onFileProgress?.(basename(inputPath), pct, "analyzing"),
 		);
 
 		if (!measurement) {
@@ -186,7 +188,8 @@ export async function normalizeFile(
 			resolved,
 			probe.duration,
 			resolved.signal ?? undefined,
-			(pct) => resolved.onFileProgress?.(basename(inputPath), pct),
+			(pct) =>
+				resolved.onFileProgress?.(basename(inputPath), pct, "normalizing"),
 		);
 
 		// If in-place, move temp to original

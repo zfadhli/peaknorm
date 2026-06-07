@@ -1,6 +1,6 @@
 #!/usr/bin/env bun
 import { readFileSync } from "node:fs";
-import { resolve } from "node:path";
+import { basename, resolve } from "node:path";
 import { cac } from "cac";
 import pc from "picocolors";
 import { PeaknormError } from "./errors.ts";
@@ -110,13 +110,17 @@ if (verbose) {
 try {
 	const batch = await normalize(inputArg, {
 		...options,
-		onFileStart: (_input, _output) => {
-			// file started — progress bar will be rendered by onFileProgress
+		onFileStart: (input) => {
+			process.stderr.write(
+				`\n${pc.dim("Starting")} ${basename(input).padEnd(40).slice(0, 40)}`,
+			);
 		},
-		onFileProgress: (_file, percent) => {
+		onFileProgress: (_file, percent, phase) => {
+			const label =
+				phase === "analyzing" ? pc.yellow("Analyzing") : pc.cyan("Normalizing");
 			const bar = renderProgressBar(percent, 20);
 			process.stderr.write(
-				`\r${bar} ${pc.cyan(String(percent))}% ${_file.padEnd(30).slice(0, 30)}`,
+				`\r${bar} ${pc.cyan(String(percent))}% ${label} ${_file.padEnd(25).slice(0, 25)}`,
 			);
 		},
 		onFileComplete: (result: NormalizeResult) => {
@@ -153,31 +157,43 @@ function renderProgressBar(percent: number, width: number): string {
 
 // ─── Result printer ──────────────────────────────────
 function printResult(result: NormalizeResult): void {
-	const tag = (() => {
-		switch (result.status) {
-			case "completed":
-				return pc.green("[completed]");
-			case "skipped":
-				return pc.yellow("[skipped]");
-			case "error":
-				return pc.red("[error]");
-		}
-	})();
+	const name = basename(result.input);
+	const time = `  time taken: ${(result.durationMs / 1000).toFixed(1)}s`;
 
-	const line = (() => {
-		switch (result.status) {
-			case "completed":
-				return (
-					`${tag} ${result.input} → ${result.output}` +
-					` (${(result.inputSizeBytes / 1024 / 1024).toFixed(1)}MB → ${(result.outputSizeBytes / 1024 / 1024).toFixed(1)}MB)` +
-					` [${(result.durationMs / 1000).toFixed(1)}s]`
-				);
-			case "skipped":
-				return `${tag} ${result.input}`;
-			case "error":
-				return `${tag} ${result.input}: ${result.error ?? "Unknown error"}`;
-		}
-	})();
+	switch (result.status) {
+		case "completed": {
+			const sizePart = (() => {
+				const inMB = (result.inputSizeBytes / 1024 / 1024).toFixed(1);
+				const isInPlace = result.input === result.output;
+				const sizeChanged =
+					result.inputSizeBytes !== result.outputSizeBytes &&
+					result.outputSizeBytes > 0;
 
-	console.error(line);
+				if (!isInPlace) {
+					const outMB = (result.outputSizeBytes / 1024 / 1024).toFixed(1);
+					return `  size: ${inMB}MB → ${outMB}MB`;
+				}
+				if (sizeChanged) {
+					const outMB = (result.outputSizeBytes / 1024 / 1024).toFixed(1);
+					return `  size: ${inMB}MB → ${outMB}MB`;
+				}
+				return `  size: ${inMB}MB`;
+			})();
+
+			console.error(`${pc.green("[completed]")}`);
+			console.error(`  ${pc.white(`filename: ${name}`)}`);
+			console.error(`${pc.white(sizePart)}`);
+			console.error(`${pc.white(time)}`);
+			break;
+		}
+		case "skipped":
+			console.error(pc.yellow("[skipped]"));
+			console.error(`  ${pc.white(`filename: ${name}`)}`);
+			break;
+		case "error":
+			console.error(pc.red("[error]"));
+			console.error(`  ${pc.white(`filename: ${name}`)}`);
+			console.error(`  ${pc.red(`error: ${result.error ?? "Unknown error"}`)}`);
+			break;
+	}
 }

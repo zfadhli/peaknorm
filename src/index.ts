@@ -14,6 +14,7 @@ export type {
 	LoudnessMeasurement,
 	MediaProbeResult,
 	NormalizeOptions,
+	NormalizePhase,
 	NormalizeResult,
 	NormalizeStatus,
 } from "./types.ts";

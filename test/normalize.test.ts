@@ -235,6 +235,7 @@ describe("integration", () => {
 			-14,
 			7,
 			-2,
+			2,
 		);
 		expect(measurement).not.toBeNull();
 		expect(measurement?.inputI).toBeDefined();
@@ -286,12 +287,22 @@ describe("integration", () => {
 			-14,
 			7,
 			-2,
+			1,
 		);
 		expect(measurement).not.toBeNull();
 
 		const m = measurement as NonNullable<typeof measurement>;
 
-		await normalizeMediaFile(ffmpegPath, inputFile, outputFile, m, opts, 1);
+		await normalizeMediaFile(
+			ffmpegPath,
+			inputFile,
+			outputFile,
+			m,
+			opts,
+			1,
+			undefined,
+			undefined,
+		);
 
 		expect(existsSync(outputFile)).toBe(true);
 
