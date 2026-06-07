@@ -49,7 +49,7 @@
 	"license": "MIT",
 	"repository": {
 		"type": "git",
-		"url": "git+https://github.com/your-org/peaknorm.git"
+		"url": "git+https://github.com/zfadhli/peaknorm.git"
 	},
 	"devDependencies": {
 		"@biomejs/biome": "^2.4.16",
