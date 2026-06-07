@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.2.1] - 2026-06-07
+
+### Fixed
+
+- Repository URL in `package.json` updated from placeholder to actual repository,
+  fixing npm publish with Sigstore provenance verification
+
 ## [0.2.0] - 2026-06-07
 
 ### Added
@@ -33,5 +40,6 @@
 - TypeScript 6, tsdown build, Biome linting, Bun test
 - GitHub Actions CI + publish workflows
 
+[0.2.1]: https://github.com/zfadhli/peaknorm/compare/v0.2.0...v0.2.1
 [0.2.0]: https://github.com/zfadhli/peaknorm/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/zfadhli/peaknorm/releases/tag/v0.1.0
