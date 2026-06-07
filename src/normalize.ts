@@ -122,6 +122,24 @@ export async function normalizeFile(
 		throw new NormalizeError(inputPath, "File does not exist");
 	}
 
+	// Dry-run: skip actual processing (no ffmpeg needed)
+	if (resolved.dryRun) {
+		const dryOutput = resolved.output
+			? join(resolved.output, basename(inputPath))
+			: tempOutputPath(inputPath);
+		resolved.onFileStart?.(inputPath, dryOutput);
+		const result: NormalizeResult = {
+			input: inputPath,
+			output: dryOutput,
+			status: "skipped",
+			inputSizeBytes: inputSize,
+			outputSizeBytes: 0,
+			durationMs: 0,
+		};
+		resolved.onFileComplete?.(result);
+		return result;
+	}
+
 	// Resolve ffmpeg path
 	const ffmpegPath = detectFfmpeg(resolved.ffmpegPath);
 
@@ -134,20 +152,6 @@ export async function normalizeFile(
 	const outputPath = outputDir ?? tempOutputPath(inputPath);
 
 	resolved.onFileStart?.(inputPath, outputPath);
-
-	// Dry-run: skip actual processing
-	if (resolved.dryRun) {
-		const result: NormalizeResult = {
-			input: inputPath,
-			output: outputPath,
-			status: "skipped",
-			inputSizeBytes: inputSize,
-			outputSizeBytes: 0,
-			durationMs: 0,
-		};
-		resolved.onFileComplete?.(result);
-		return result;
-	}
 
 	// Create backup for in-place normalization
 	let backupResult: ReturnType<typeof createBackup> | null = null;
