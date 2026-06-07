@@ -131,7 +131,7 @@ try {
 	} as Parameters<typeof normalize>[1]);
 
 	console.error(
-		`\nDone: ${pc.green(String(batch.completed))}/${batch.total} files processed` +
+		`\n${pc.blue("Done:")} ${pc.green(String(batch.completed))}/${batch.total} files processed` +
 			(batch.errors > 0 ? `, ${pc.red(String(batch.errors))} errors` : "") +
 			` (${(batch.durationMs / 1000).toFixed(1)}s)`,
 	);
