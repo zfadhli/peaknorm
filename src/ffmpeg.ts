@@ -264,13 +264,30 @@ export async function normalizeMediaFile(
 			`loudnorm=I=${opts.loudness}`,
 			`LRA=${opts.lra}`,
 			`TP=${opts.truePeak}`,
-			"linear=true",
-			`measured_I=${measurement.inputI}`,
-			`measured_LRA=${measurement.inputLra}`,
-			`measured_TP=${measurement.inputTp}`,
-			`measured_thresh=${measurement.inputThresh}`,
-			`offset=${measurement.offset}`,
 		];
+
+		// Validate measurement values — ffmpeg can return "-inf"/"nan" for
+		// very quiet or silent content, causing "Numerical result out of range"
+		// in Pass 2. Fall back to dynamic normalization when values are invalid.
+		const isValidNum = (v: string): boolean => {
+			const n = Number(v);
+			return !Number.isNaN(n) && Number.isFinite(n);
+		};
+
+		if (
+			isValidNum(measurement.inputI) &&
+			isValidNum(measurement.inputLra) &&
+			isValidNum(measurement.inputTp) &&
+			isValidNum(measurement.inputThresh) &&
+			isValidNum(measurement.offset)
+		) {
+			loudnormArgs.push("linear=true");
+			loudnormArgs.push(`measured_I=${measurement.inputI}`);
+			loudnormArgs.push(`measured_LRA=${measurement.inputLra}`);
+			loudnormArgs.push(`measured_TP=${measurement.inputTp}`);
+			loudnormArgs.push(`measured_thresh=${measurement.inputThresh}`);
+			loudnormArgs.push(`offset=${measurement.offset}`);
+		}
 
 		args.push("-af", loudnormArgs.join(":"));
 		args.push("-c:a", opts.audioCodec);
