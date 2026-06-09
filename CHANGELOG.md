@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.2.3] - 2026-06-07
+
+### Fixed
+
+- Loudnorm Pass 2 crash on silent/very quiet audio files — ffmpeg
+  `measured_I` values of `-inf`/`nan` now cause a fallback to dynamic
+  normalization instead of "Numerical result out of range" error
+
 ## [0.2.2] - 2026-06-07
 
 ### Added
@@ -47,6 +55,7 @@
 - TypeScript 6, tsdown build, Biome linting, Bun test
 - GitHub Actions CI + publish workflows
 
+[0.2.3]: https://github.com/zfadhli/peaknorm/compare/v0.2.2...v0.2.3
 [0.2.2]: https://github.com/zfadhli/peaknorm/compare/v0.2.1...v0.2.2
 [0.2.1]: https://github.com/zfadhli/peaknorm/compare/v0.2.0...v0.2.1
 [0.2.0]: https://github.com/zfadhli/peaknorm/compare/v0.1.0...v0.2.0
