@@ -162,7 +162,8 @@ export async function measureLoudness(
 		proc.on("error", (err) => reject(err));
 		proc.on("close", (code) => {
 			if (code !== 0) {
-				resolve(null);
+				const msg = extractFfmpegError(stderr);
+				reject(new FfmpegError(msg || `Exited with code ${code}`, code));
 				return;
 			}
 			try {
