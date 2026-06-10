@@ -167,6 +167,10 @@ export async function normalizeFile(
 			resolved.signal ?? undefined,
 		);
 
+		if (!probe.hasAudio) {
+			throw new NormalizeError(inputPath, "No audio stream found in the file");
+		}
+
 		// Measure loudness (Pass 1) — reports "analyzing" phase
 		const measurement = await measureLoudness(
 			ffmpegPath,
@@ -180,7 +184,10 @@ export async function normalizeFile(
 		);
 
 		if (!measurement) {
-			throw new NormalizeError(inputPath, "Failed to measure loudness");
+			throw new NormalizeError(
+				inputPath,
+				"Failed to parse loudnorm measurement output",
+			);
 		}
 
 		// Normalize audio (Pass 2)

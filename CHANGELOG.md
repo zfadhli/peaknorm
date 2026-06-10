@@ -1,5 +1,15 @@
 # Changelog
 
+## [0.2.4] - 2026-06-10
+
+### Fixed
+
+- Files without audio streams now fail with a clear "No audio stream found
+  in the file" error instead of a cryptic "Failed to measure loudness"
+- Loudnorm measurement failures now surface the actual ffmpeg error message
+  from stderr, making debugging significantly easier
+- Clarified loudnorm JSON parse failure error message
+
 ## [0.2.3] - 2026-06-07
 
 ### Fixed
@@ -55,6 +65,7 @@
 - TypeScript 6, tsdown build, Biome linting, Bun test
 - GitHub Actions CI + publish workflows
 
+[0.2.4]: https://github.com/zfadhli/peaknorm/compare/v0.2.3...v0.2.4
 [0.2.3]: https://github.com/zfadhli/peaknorm/compare/v0.2.2...v0.2.3
 [0.2.2]: https://github.com/zfadhli/peaknorm/compare/v0.2.1...v0.2.2
 [0.2.1]: https://github.com/zfadhli/peaknorm/compare/v0.2.0...v0.2.1
