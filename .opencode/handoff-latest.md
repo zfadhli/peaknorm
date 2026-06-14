@@ -1,58 +1,41 @@
-# Session Handoff — 2026-06-07 13:44
+# Session Handoff — 2026-06-10 10:47
 
 ## Goal
 
-Build a TypeScript CLI + library (`peaknorm`) for normalizing audio loudness in media files using EBU R128 standard via ffmpeg's `loudnorm` filter. The tool handles both video (video passthrough) and audio-only files, with backup strategies, real-time progress, and a clean programmatic API.
+Fix a cryptic "Failed to measure loudness" error when running `peaknorm` on video files without audio. The user hit this on a `.mp4` with no audio track — the code swallowed the real error and gave no useful diagnostic.
 
 ## Files Modified/Created
 
-### Config & Docs
-- `package.json` — project metadata, dependencies (`cac`, `picocolors`), scripts, dual exports
-- `tsconfig.json` — TS6 strict, NodeNext, `isolatedDeclarations: true`
-- `tsdown.config.ts` — builds both `src/index.ts` (lib) and `src/cli.ts` (CLI) to ESM
-- `biome.json` — linter + formatter with git integration
-- `.gitignore` — excludes `dist/`, `node_modules/`, `input/` (test media), temp/backup artifacts
-- `CHANGELOG.md` — versions 0.1.0 through 0.2.3 (Keep a Changelog format)
-- `README.md` — full docs: CLI usage, API reference, pipeline walkthrough, error handling
-- `.github/workflows/ci.yml` — lint, typecheck, build, test on push/PR to main
-- `.github/workflows/publish.yml` — npm publish with Sigstore provenance on `v*` tags
-
 ### Source — `src/`
-- `index.ts` — barrel exports: `normalize`, `normalizeFile`, `normalizeFolder`, error classes, types
-- `types.ts` — `NormalizeOptions`, `NormalizeResult`, `BatchResult`, `NormalizePhase`, `LoudnessMeasurement`, etc.
-- `errors.ts` — `PeaknormError` hierarchy (6 classes)
-- `utils.ts` — `findMediaFiles()`, `parseFfmpegProgress()`, `extractFfmpegError()`, `isFile/isDirectory`
-- `backup.ts` — `createBackup()`, `restoreBackup()`, `deleteBackup()` — three strategies (copy/folder/suffix)
-- `ffmpeg.ts` — `detectFfmpeg()`, `probeMedia()` (early-kill ~200ms), `measureLoudness()` (Pass 1), `normalizeMediaFile()` (Pass 2 with validation fallback)
-- `normalize.ts` — `normalizeFile()` (orchestrates pipeline with backup/restore), `normalizeFolder()`, `normalize()`
-- `cli.ts` — cac CLI: dry-run, backup, codec, loudness options; progress bar with phase labels; multi-line result output
+- `normalize.ts` — Added `probe.hasAudio` check after `probeMedia()` so files without audio fail immediately with "No audio stream found in the file" instead of the generic measurement failure
+- `ffmpeg.ts` — `measureLoudness` now calls `extractFfmpegError(stderr)` and throws `FfmpegError` on non-zero exit code instead of resolving `null`, surfacing the actual ffmpeg error to the user
+- `normalize.ts` — Clarified the null-measurement error message to "Failed to parse loudnorm measurement output" (only triggered on rare JSON parse failures)
 
-### Test — `test/`
-- `normalize.test.ts` — dry-run unit tests + integration tests (conditional on ffmpeg presence)
-- `backup.test.ts` — all three backup/restore strategies
-- `utils.test.ts` — `parseFfmpegProgress`, `isFile`, `isDirectory`
+### Config & Docs
+- `package.json` — bumped version from 0.2.3 to 0.2.4
+- `CHANGELOG.md` — added v0.2.4 section with three Fixed entries
+- `.opencode/handoff-latest.md` — this handoff file (overwritten)
 
 ## Key Decisions
 
-- **Functional API (no class)** — The pipeline is stateless (input → backup → normalize → done). A class would only wrap a function. Callbacks (`onFileProgress`, `onFileComplete`) handle progress/error reporting instead of EventEmitter.
-- **Single package, dual exports** — Not a monorepo. `import { normalize } from "peaknorm"` loads the lib; `npx peaknorm` runs the CLI. `cac` is bundled only into `cli.mjs` at build time. Simpler than splitting packages.
-- **Callbacks, not EventEmitter** — For a one-shot batch operation, `onFileProgress` callbacks in options are simpler than `.on()`/`.off()` lifecycle management.
-- **`--no-backup` parsed from raw argv** — `cac` v6 auto-handles `--no-` prefix negation, but sets a boolean `true` default that conflicts with required value options. Solution: parse `rawArgv.includes("--no-backup")` manually after `cli.parse(argv, { run: false })`.
-- **`probeMedia` early-kill** — ffmpeg outputs `Duration:` and `Stream #` lines in stderr within ~200ms but continues decoding the whole file (10-30s). We kill ffmpeg with SIGTERM as soon as both are detected.
-- **Measurement validation** — ffmpeg returns `-inf`/`nan` for silent/very quiet audio in Pass 1. `normalizeMediaFile` validates with `isFinite`/`isNaN` before Pass 2; falls back to dynamic normalization when values are invalid.
-- **Default branch: `main`** — was `feature/progress-phase`, switched to `main` during development.
-- **Opus default codec** — royalt-free, better quality-per-bit than AAC at 96k. Configurable via `--audio-codec`.
+- **`measureLoudness` throws instead of returning null** on ffmpeg failure — lets the actual ffmpeg stderr error propagate up through the existing try/catch in `normalizeFile`, producing a much more informative error message. The `null` return is kept only for JSON parse failures in the output.
+- **Audio validation at the correct layer** — checked after `probeMedia` and before `measureLoudness` in `normalizeFile`, keeping `measureLoudness` focused on its single responsibility.
+- **Patch release (v0.2.4)** — the work was a `fix:` commit (error handling improvements), so a patch bump was appropriate per semver.
 
 ## Current State
 
-### Working
+### Working (unchanged from v0.2.3)
 - Full EBU R128 two-pass loudnorm pipeline
 - CLI: all flags, dry-run, backup strategies, progress bar, multi-line output
 - Library: `normalize()`, `normalizeFile()`, `normalizeFolder()` with full type exports
 - GitHub Actions CI (build + test) and publish (npm with provenance)
-- 4 releases published to npm (v0.2.0 through v0.2.3)
+- 5 releases published to npm (v0.2.0 through v0.2.4)
 - README with comprehensive documentation
 - Both video files (stream-copy) and audio-only files handled
+
+### Fixed this session
+- Files without audio streams now fail with a clear error message
+- Loudnorm measurement failures now surface the actual ffmpeg error from stderr
 
 ### Test results
 - 29 tests: 29 pass (3 integration tests skipped when ffmpeg not available)
@@ -65,6 +48,7 @@ Build a TypeScript CLI + library (`peaknorm`) for normalizing audio loudness in 
 - [ ] **Selective audio streams** — allow users to pick which audio stream(s) to normalize in multi-stream files
 - [ ] **Shell completions** — bash/zsh completions via `cac` or custom generation
 - [ ] **`--lower-only` flag** — prevent audio from increasing in loudness, only lower if needed
+- [ ] **LICENSE file** — `package.json` says MIT but no actual `LICENSE` file in repo
 
 ## Important Context
 
@@ -72,6 +56,7 @@ Build a TypeScript CLI + library (`peaknorm`) for normalizing audio loudness in 
 - **Entry points:** `"exports"` maps `"."` → `dist/index.mjs` (lib), `"./cli"` → `dist/cli.mjs` (CLI module)
 - **Build:** `bun run build` → tsdown bundles both entries + generates `.d.mts` declarations
 - **Dev loop:** `bun run dev -- ./file.mp4 --dry-run` runs CLI from TypeScript source directly
+- **Latest version:** v0.2.4 (released, tag pushed, release published on GitHub)
 - **cac v6 caveat:** `--no-backup` handling requires `cli.parse(argv, { run: false })` + raw argv scanning. The `process.argv.slice(2)` pattern from cac docs is wrong for v6 — it expects full `process.argv` and internally slices again.
 - **probeMedia:** Resolves as soon as `Duration:` and `Stream #` lines appear in stderr, kills ffmpeg. For very short files, the `close` handler is the fallback.
 - **measurement validation:** If ffmpeg returns `-inf`/`nan` for any measured value, Pass 2 falls back to dynamic loudnorm (no `linear=true` or `measured_*` args).
