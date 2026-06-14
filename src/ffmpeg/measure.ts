@@ -81,47 +81,34 @@ export async function measureLoudness(
  *
  * ffmpeg outputs something like:
  *   [Parsed_loudnorm_0 @ 0x...] { "input_i": "-23.5", ... }
+ *
+ * Finds the first JSON object in stderr and validates its shape.
  */
 function parseLoudnormJson(stderr: string): LoudnessMeasurement | null {
+	// Find the first JSON object in ffmpeg stderr output
+	const match = stderr.match(/\{[\s\S]*?\}/);
+	if (!match) return null;
+
 	try {
-		let start = -1;
-		let depth = 0;
+		const data = JSON.parse(match[0]) as Record<string, string>;
 
-		for (let i = 0; i < stderr.length; i++) {
-			const ch = stderr[i];
-			if (ch === "{") {
-				if (start === -1) {
-					start = i;
-				}
-				depth++;
-			} else if (ch === "}") {
-				depth--;
-				if (depth === 0 && start !== -1) {
-					const jsonStr = stderr.slice(start, i + 1);
-					const data = JSON.parse(jsonStr) as Record<string, string>;
-
-					if (
-						typeof data.input_i === "string" &&
-						typeof data.input_lra === "string" &&
-						typeof data.input_tp === "string" &&
-						typeof data.input_thresh === "string" &&
-						typeof data.target_offset === "string"
-					) {
-						return {
-							inputI: data.input_i,
-							inputLra: data.input_lra,
-							inputTp: data.input_tp,
-							inputThresh: data.input_thresh,
-							offset: data.target_offset,
-						};
-					}
-					return null;
-				}
-			}
+		if (
+			typeof data.input_i === "string" &&
+			typeof data.input_lra === "string" &&
+			typeof data.input_tp === "string" &&
+			typeof data.input_thresh === "string" &&
+			typeof data.target_offset === "string"
+		) {
+			return {
+				inputI: data.input_i,
+				inputLra: data.input_lra,
+				inputTp: data.input_tp,
+				inputThresh: data.input_thresh,
+				offset: data.target_offset,
+			};
 		}
+		return null;
 	} catch {
-		// JSON parse failure
+		return null;
 	}
-
-	return null;
 }

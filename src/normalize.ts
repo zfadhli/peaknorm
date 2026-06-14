@@ -1,6 +1,7 @@
 import { renameSync, unlinkSync } from "node:fs";
 import { basename, join, resolve } from "node:path";
 import { performance } from "node:perf_hooks";
+import type { BackupResult } from "./backup.ts";
 import {
 	createBackup,
 	deleteBackup,
@@ -23,6 +24,31 @@ import type {
 	NormalizeOptions,
 	NormalizeResult,
 } from "./types.ts";
+
+/**
+ * Clean up after a failed normalization attempt.
+ * Deletes the temp output file and restores the original from backup.
+ */
+function cleanupAfterError(
+	outputPath: string,
+	backupResult: BackupResult | null,
+	useTemp: boolean,
+	inputPath: string,
+): void {
+	try {
+		unlinkSync(outputPath);
+	} catch {
+		// ignore — temp file may not exist
+	}
+
+	if (backupResult && useTemp) {
+		try {
+			restoreBackup(backupResult, inputPath);
+		} catch {
+			// ignore restore failure
+		}
+	}
+}
 
 /**
  * Normalize a single media file.
@@ -155,21 +181,7 @@ export async function normalizeFile(
 		resolved.onFileComplete?.(result);
 		return result;
 	} catch (err) {
-		// Clean up temp file if it exists
-		try {
-			unlinkSync(outputPath);
-		} catch {
-			// ignore
-		}
-
-		// Restore backup if it exists
-		if (backupResult && useTemp) {
-			try {
-				restoreBackup(backupResult, inputPath);
-			} catch {
-				// ignore restore failure
-			}
-		}
+		cleanupAfterError(outputPath, backupResult, useTemp, inputPath);
 
 		const error =
 			err instanceof Error ? err : new NormalizeError(inputPath, String(err));
