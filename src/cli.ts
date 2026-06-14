@@ -1,9 +1,14 @@
 #!/usr/bin/env bun
 import { readFileSync } from "node:fs";
 import { basename, resolve } from "node:path";
-import { createCLI, color, createSpinner, createProgress } from "@zfadhli/koko-cli";
+import {
+	color,
+	createCLI,
+	createProgress,
+	createSpinner,
+} from "@zfadhli/koko-cli";
 import { PeaknormError } from "./errors.ts";
-import { detectFfmpeg } from "./ffmpeg.ts";
+import { detectFfmpeg } from "./ffmpeg/index.ts";
 import { normalize } from "./normalize.ts";
 import type { BackupStrategy, NormalizeResult } from "./types.ts";
 
@@ -39,14 +44,8 @@ cli.command("[input]", "File or folder to normalize", (cmd) => {
 	cmd.option("-e, --ext <ext>", "File extensions to process (repeatable)");
 	cmd.option("--ffmpeg-path <path>", "Custom ffmpeg binary path");
 	cmd.option("--dry-run", "Preview without processing");
-	cmd.option(
-		"--sort-by <method>",
-		"Sort files by: name|mtime (default: name)",
-	);
-	cmd.option(
-		"--sort-order <dir>",
-		"Sort direction: asc|desc (default: asc)",
-	);
+	cmd.option("--sort-by <method>", "Sort files by: name|mtime (default: name)");
+	cmd.option("--sort-order <dir>", "Sort direction: asc|desc (default: asc)");
 	cmd.option("--verbose", "Verbose output");
 
 	cmd.action(async (options) => {
@@ -60,9 +59,7 @@ cli.command("[input]", "File or folder to normalize", (cmd) => {
 		try {
 			detectFfmpeg(options.ffmpegPath as string | undefined);
 		} catch (err) {
-			console.error(
-				err instanceof PeaknormError ? err.message : String(err),
-			);
+			console.error(err instanceof PeaknormError ? err.message : String(err));
 			process.exit(1);
 		}
 
@@ -95,14 +92,11 @@ cli.command("[input]", "File or folder to normalize", (cmd) => {
 		normalizeOpts.backup = backup;
 		if (cliOpts.recursive !== undefined)
 			normalizeOpts.recursive = cliOpts.recursive;
-		if (cliOpts.ext !== undefined)
-			normalizeOpts.extensions = cliOpts.ext;
+		if (cliOpts.ext !== undefined) normalizeOpts.extensions = cliOpts.ext;
 		if (cliOpts.ffmpegPath !== undefined)
 			normalizeOpts.ffmpegPath = cliOpts.ffmpegPath;
-		if (cliOpts.dryRun !== undefined)
-			normalizeOpts.dryRun = cliOpts.dryRun;
-		if (cliOpts.sortBy !== undefined)
-			normalizeOpts.sortBy = cliOpts.sortBy;
+		if (cliOpts.dryRun !== undefined) normalizeOpts.dryRun = cliOpts.dryRun;
+		if (cliOpts.sortBy !== undefined) normalizeOpts.sortBy = cliOpts.sortBy;
 		if (cliOpts.sortOrder !== undefined)
 			normalizeOpts.sortOrder = cliOpts.sortOrder;
 

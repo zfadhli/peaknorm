@@ -1,5 +1,5 @@
-import { renameSync, statSync, unlinkSync } from "node:fs";
-import { basename, extname, join, resolve } from "node:path";
+import { renameSync, unlinkSync } from "node:fs";
+import { basename, join, resolve } from "node:path";
 import { performance } from "node:perf_hooks";
 import {
 	createBackup,
@@ -7,98 +7,22 @@ import {
 	getFileSize,
 	restoreBackup,
 } from "./backup.ts";
+import { resolveOptions, tempOutputPath } from "./config.ts";
 import { NoMediaFilesError, NormalizeError } from "./errors.ts";
 import {
 	detectFfmpeg,
 	measureLoudness,
 	normalizeMediaFile,
 	probeMedia,
-} from "./ffmpeg.ts";
+} from "./ffmpeg/index.ts";
+import { isDirectory, isFile } from "./fs.ts";
+import { findMediaFiles } from "./media.ts";
+import { sortFileList } from "./sort.ts";
 import type {
-	BackupStrategy,
 	BatchResult,
 	NormalizeOptions,
 	NormalizeResult,
-	ResolvedOptions,
 } from "./types.ts";
-import { findMediaFiles, isDirectory, isFile } from "./utils.ts";
-
-const DEFAULT_EXTENSIONS: string[] = [
-	".mp4",
-	".mkv",
-	".avi",
-	".mov",
-	".webm",
-	".m4v",
-	".ts",
-	".mp3",
-	".wav",
-	".flac",
-	".m4a",
-	".ogg",
-	".wma",
-	".aac",
-	".opus",
-];
-
-const DEFAULTS: ResolvedOptions = {
-	loudness: -14,
-	lra: 7,
-	truePeak: -2,
-	audioCodec: "libopus",
-	audioBitrate: "96k",
-	output: null,
-	backup: "copy",
-	recursive: true,
-	extensions: DEFAULT_EXTENSIONS,
-	ffmpegPath: "ffmpeg",
-	dryRun: false,
-	signal: null,
-	sortBy: "name",
-	sortOrder: "asc",
-	onFileStart: null,
-	onFileProgress: null,
-	onFileComplete: null,
-	onFileError: null,
-};
-
-function resolveOptions(opts: NormalizeOptions = {}): ResolvedOptions {
-	const resolved: ResolvedOptions = { ...DEFAULTS };
-
-	for (const [key, value] of Object.entries(opts)) {
-		if (value !== undefined) {
-			(resolved as unknown as Record<string, unknown>)[key] = value;
-		}
-	}
-
-	// Handle backup: boolean
-	if (opts.backup === false) {
-		resolved.backup = false;
-	} else if (opts.backup === true || opts.backup === undefined) {
-		resolved.backup = "copy";
-	} else if (typeof opts.backup === "string") {
-		resolved.backup = opts.backup as BackupStrategy;
-	}
-
-	// Handle extensions: normalize to dot-prefixed lowercase
-	if (opts.extensions) {
-		resolved.extensions = opts.extensions.map((e) =>
-			e.startsWith(".") ? e.toLowerCase() : `.${e.toLowerCase()}`,
-		);
-	}
-
-	return resolved;
-}
-
-/**
- * Generate a temporary output path for in-place processing.
- * Uses `<original>.<ext>.peaknorm-tmp` pattern.
- */
-function tempOutputPath(inputPath: string): string {
-	const ext = extname(inputPath);
-	const base = inputPath.slice(0, -ext.length);
-	return `${base}.peaknorm-tmp${ext}`;
-}
 
 /**
  * Normalize a single media file.
@@ -331,37 +255,6 @@ export async function normalizeFolder(
 		results,
 		durationMs: Math.round(performance.now() - batchStart),
 	};
-}
-
-/**
- * Sort a list of file paths by the given criterion and direction.
- */
-function sortFileList(
-	files: string[],
-	by: "name" | "mtime",
-	order: "asc" | "desc",
-): string[] {
-	if (by === "name") {
-		// findMediaFiles already sorts lexicographically ascending
-		return order === "asc" ? files : [...files].reverse();
-	}
-
-	// Sort by modification time
-	const entries = files.map((f) => {
-		let mtime = 0;
-		try {
-			mtime = statSync(f).mtimeMs;
-		} catch {
-			// file may have been removed between discovery and sorting
-		}
-		return { path: f, mtime };
-	});
-
-	entries.sort((a, b) =>
-		order === "asc" ? a.mtime - b.mtime : b.mtime - a.mtime,
-	);
-
-	return entries.map((e) => e.path);
 }
 
 /**

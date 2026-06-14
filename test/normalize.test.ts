@@ -117,7 +117,7 @@ describe("normalize (auto-detect)", () => {
 
 describe("findMediaFiles", () => {
 	it("finds media files by extension", async () => {
-		const { findMediaFiles } = await import("../src/utils.ts");
+		const { findMediaFiles } = await import("../src/media.ts");
 		mkdirSync(join(testDir, "videos"), { recursive: true });
 		writeFileSync(join(testDir, "videos", "a.mp4"), "");
 		writeFileSync(join(testDir, "videos", "b.mp3"), "");
@@ -135,7 +135,7 @@ describe("findMediaFiles", () => {
 	});
 
 	it("respects recursive flag", async () => {
-		const { findMediaFiles } = await import("../src/utils.ts");
+		const { findMediaFiles } = await import("../src/media.ts");
 		mkdirSync(join(testDir, "parent", "sub"), { recursive: true });
 		writeFileSync(join(testDir, "parent", "a.mp4"), "");
 		writeFileSync(join(testDir, "parent", "sub", "b.mp4"), "");
@@ -153,7 +153,7 @@ describe("findMediaFiles", () => {
 });
 
 test("extractFfmpegError extracts error from stderr", async () => {
-	const { extractFfmpegError } = await import("../src/utils.ts");
+	const { extractFfmpegError } = await import("../src/ffmpeg/parse.ts");
 
 	const stderr = `
 ffmpeg version 7.0 ...
@@ -172,8 +172,8 @@ describe("integration", () => {
 	const itIf = hasFfmpeg() ? it : it.skip;
 
 	itIf("probes a media file", async () => {
-		const { probeMedia } = await import("../src/ffmpeg.ts");
-		const { detectFfmpeg } = await import("../src/ffmpeg.ts");
+		const { probeMedia } = await import("../src/ffmpeg/index.ts");
+		const { detectFfmpeg } = await import("../src/ffmpeg/index.ts");
 		const ffmpegPath = detectFfmpeg();
 
 		// Generate a small test video using ffmpeg
@@ -209,7 +209,9 @@ describe("integration", () => {
 	});
 
 	itIf("measures loudness of an audio file", async () => {
-		const { detectFfmpeg, measureLoudness } = await import("../src/ffmpeg.ts");
+		const { detectFfmpeg, measureLoudness } = await import(
+			"../src/ffmpeg/index.ts"
+		);
 		const ffmpegPath = detectFfmpeg();
 
 		// Generate a test audio file (sine tone)
@@ -245,7 +247,7 @@ describe("integration", () => {
 
 	itIf("normalizes a short audio file", async () => {
 		const { detectFfmpeg, measureLoudness, normalizeMediaFile } = await import(
-			"../src/ffmpeg.ts"
+			"../src/ffmpeg/index.ts"
 		);
 		const ffmpegPath = detectFfmpeg();
 
@@ -307,7 +309,7 @@ describe("integration", () => {
 		expect(existsSync(outputFile)).toBe(true);
 
 		// Verify the output is playable
-		const probe = await (await import("../src/ffmpeg.ts")).probeMedia(
+		const probe = await (await import("../src/ffmpeg/index.ts")).probeMedia(
 			outputFile,
 			ffmpegPath,
 		);
