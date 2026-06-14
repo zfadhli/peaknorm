@@ -276,6 +276,8 @@ describe("integration", () => {
 			extensions: [".wav"],
 			ffmpegPath,
 			dryRun: false,
+			sortBy: "name" as const,
+			sortOrder: "asc" as const,
 			signal: null,
 			onFileStart: null,
 			onFileProgress: null,

@@ -70,7 +70,7 @@ cli.command("[input]", "File or folder to normalize", (cmd) => {
 	cmd.option("--sort-order <dir>", "Sort direction: asc|desc (default: asc)");
 	cmd.option("--verbose", "Verbose output");
 
-	cmd.action(async (options) => {
+	cmd.action(async (options: Record<string, unknown>) => {
 		const inputArg = options.input as string | undefined;
 		if (!inputArg) {
 			console.error("error: missing required input path");
