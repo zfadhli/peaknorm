@@ -1,11 +1,38 @@
 #!/usr/bin/env bun
 import { readFileSync } from "node:fs";
 import { basename, resolve } from "node:path";
-import { createCLI, color, createSpinner, createProgress } from "@zfadhli/koko-cli";
+import {
+	color,
+	createCLI,
+	createProgress,
+	createSpinner,
+} from "@zfadhli/koko-cli";
 import { PeaknormError } from "./errors.ts";
-import { detectFfmpeg } from "./ffmpeg.ts";
+import { detectFfmpeg } from "./ffmpeg/index.ts";
+import { formatResult } from "./format.ts";
 import { normalize } from "./normalize.ts";
 import type { BackupStrategy, NormalizeResult } from "./types.ts";
+
+interface OptionMapping {
+	cliName: string;
+	normalizeName: string;
+	coerce?: (val: unknown) => unknown;
+}
+
+const OPTION_MAPPINGS: OptionMapping[] = [
+	{ cliName: "output", normalizeName: "output" },
+	{ cliName: "loudness", normalizeName: "loudness", coerce: Number },
+	{ cliName: "lra", normalizeName: "lra", coerce: Number },
+	{ cliName: "truePeak", normalizeName: "truePeak", coerce: Number },
+	{ cliName: "audioCodec", normalizeName: "audioCodec" },
+	{ cliName: "audioBitrate", normalizeName: "audioBitrate" },
+	{ cliName: "recursive", normalizeName: "recursive" },
+	{ cliName: "ext", normalizeName: "extensions" },
+	{ cliName: "ffmpegPath", normalizeName: "ffmpegPath" },
+	{ cliName: "dryRun", normalizeName: "dryRun" },
+	{ cliName: "sortBy", normalizeName: "sortBy" },
+	{ cliName: "sortOrder", normalizeName: "sortOrder" },
+];
 
 function getVersion(): string {
 	try {
@@ -39,17 +66,11 @@ cli.command("[input]", "File or folder to normalize", (cmd) => {
 	cmd.option("-e, --ext <ext>", "File extensions to process (repeatable)");
 	cmd.option("--ffmpeg-path <path>", "Custom ffmpeg binary path");
 	cmd.option("--dry-run", "Preview without processing");
-	cmd.option(
-		"--sort-by <method>",
-		"Sort files by: name|mtime (default: name)",
-	);
-	cmd.option(
-		"--sort-order <dir>",
-		"Sort direction: asc|desc (default: asc)",
-	);
+	cmd.option("--sort-by <method>", "Sort files by: name|mtime (default: name)");
+	cmd.option("--sort-order <dir>", "Sort direction: asc|desc (default: asc)");
 	cmd.option("--verbose", "Verbose output");
 
-	cmd.action(async (options) => {
+	cmd.action(async (options: Record<string, unknown>) => {
 		const inputArg = options.input as string | undefined;
 		if (!inputArg) {
 			console.error("error: missing required input path");
@@ -60,9 +81,7 @@ cli.command("[input]", "File or folder to normalize", (cmd) => {
 		try {
 			detectFfmpeg(options.ffmpegPath as string | undefined);
 		} catch (err) {
-			console.error(
-				err instanceof PeaknormError ? err.message : String(err),
-			);
+			console.error(err instanceof PeaknormError ? err.message : String(err));
 			process.exit(1);
 		}
 
@@ -77,34 +96,18 @@ cli.command("[input]", "File or folder to normalize", (cmd) => {
 				? (options.backup as BackupStrategy)
 				: "copy";
 
-		// ─── Build options object ──────────────────────────────
+		// ─── Build options object via schema mapping ──────────
 		const cliOpts = options as Record<string, unknown>;
-
 		const normalizeOpts: Record<string, unknown> = {};
-
-		if (cliOpts.output !== undefined) normalizeOpts.output = cliOpts.output;
-		if (cliOpts.loudness !== undefined)
-			normalizeOpts.loudness = Number(cliOpts.loudness);
-		if (cliOpts.lra !== undefined) normalizeOpts.lra = Number(cliOpts.lra);
-		if (cliOpts.truePeak !== undefined)
-			normalizeOpts.truePeak = Number(cliOpts.truePeak);
-		if (cliOpts.audioCodec !== undefined)
-			normalizeOpts.audioCodec = cliOpts.audioCodec;
-		if (cliOpts.audioBitrate !== undefined)
-			normalizeOpts.audioBitrate = cliOpts.audioBitrate;
+		for (const mapping of OPTION_MAPPINGS) {
+			const val = cliOpts[mapping.cliName];
+			if (val !== undefined) {
+				normalizeOpts[mapping.normalizeName] = mapping.coerce
+					? mapping.coerce(val)
+					: val;
+			}
+		}
 		normalizeOpts.backup = backup;
-		if (cliOpts.recursive !== undefined)
-			normalizeOpts.recursive = cliOpts.recursive;
-		if (cliOpts.ext !== undefined)
-			normalizeOpts.extensions = cliOpts.ext;
-		if (cliOpts.ffmpegPath !== undefined)
-			normalizeOpts.ffmpegPath = cliOpts.ffmpegPath;
-		if (cliOpts.dryRun !== undefined)
-			normalizeOpts.dryRun = cliOpts.dryRun;
-		if (cliOpts.sortBy !== undefined)
-			normalizeOpts.sortBy = cliOpts.sortBy;
-		if (cliOpts.sortOrder !== undefined)
-			normalizeOpts.sortOrder = cliOpts.sortOrder;
 
 		const verbose = cliOpts.verbose === true;
 
@@ -114,8 +117,6 @@ cli.command("[input]", "File or folder to normalize", (cmd) => {
 		}
 
 		// ─── Spinner + Progress bar instances ─────────────
-		// These persist across callbacks via closure so we can
-		// transition from spinner (analyzing) to bar (normalizing).
 		let spin: ReturnType<typeof createSpinner> | null = null;
 		let progressBar: ReturnType<typeof createProgress> | null = null;
 
@@ -158,7 +159,7 @@ cli.command("[input]", "File or folder to normalize", (cmd) => {
 						spin.stop();
 						spin = null;
 					}
-					printResult(result);
+					writeFormattedResult(result);
 				},
 			});
 
@@ -187,46 +188,20 @@ cli.command("[input]", "File or folder to normalize", (cmd) => {
 cli.parse();
 
 // ─── Result printer ──────────────────────────────────
-function printResult(result: NormalizeResult): void {
-	const name = basename(result.input);
-	const time = `  time taken: ${(result.durationMs / 1000).toFixed(1)}s`;
-
-	switch (result.status) {
-		case "completed": {
-			const sizePart = (() => {
-				const inMB = (result.inputSizeBytes / 1024 / 1024).toFixed(1);
-				const isInPlace = result.input === result.output;
-				const sizeChanged =
-					result.inputSizeBytes !== result.outputSizeBytes &&
-					result.outputSizeBytes > 0;
-
-				if (!isInPlace) {
-					const outMB = (result.outputSizeBytes / 1024 / 1024).toFixed(1);
-					return `  size: ${inMB}MB → ${outMB}MB`;
-				}
-				if (sizeChanged) {
-					const outMB = (result.outputSizeBytes / 1024 / 1024).toFixed(1);
-					return `  size: ${inMB}MB → ${outMB}MB`;
-				}
-				return `  size: ${inMB}MB`;
-			})();
-
-			console.error(`${color.green("[completed]")}`);
-			console.error(`  ${color.white(`filename: ${name}`)}`);
-			console.error(`${color.white(sizePart)}`);
-			console.error(`${color.white(time)}`);
-			break;
+function writeFormattedResult(result: NormalizeResult): void {
+	const lines = formatResult(result);
+	for (const line of lines) {
+		// Apply color based on status prefix
+		if (line === "[completed]") {
+			console.error(color.green(line));
+		} else if (line === "[skipped]") {
+			console.error(color.yellow(line));
+		} else if (line === "[error]") {
+			console.error(color.red(line));
+		} else if (line.startsWith("  error:")) {
+			console.error(color.red(line));
+		} else {
+			console.error(color.white(line));
 		}
-		case "skipped":
-			console.error(color.yellow("[skipped]"));
-			console.error(`  ${color.white(`filename: ${name}`)}`);
-			break;
-		case "error":
-			console.error(color.red("[error]"));
-			console.error(`  ${color.white(`filename: ${name}`)}`);
-			console.error(
-				`  ${color.red(`error: ${result.error ?? "Unknown error"}`)}`,
-			);
-			break;
 	}
 }

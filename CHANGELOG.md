@@ -1,5 +1,33 @@
 # Changelog
 
+## [0.5.0] - 2026-06-14
+
+### Refactored
+
+- **Module structure deepened** — `src/ffmpeg.ts` split into
+  `src/ffmpeg/{detect,probe,measure,normalize,parse,index}.ts` for single-
+  responsibility modules; `src/utils.ts` dissolved into domain homes;
+  `src/config.ts` + `src/sort.ts` extracted from `normalize.ts`
+- **CLI option mapping** — replaced 15 repetitive `if` blocks in `cli.ts`
+  with a declarative schema-driven mapping loop (`OptionMapping[]`)
+- **Result formatting** — extracted `src/format.ts` with pure `formatResult()`
+  function, testable without console mocking
+- **Error recovery** — extracted `cleanupAfterError()` helper in `normalize.ts`
+  to separate pipeline logic from cleanup
+- **JSON parsing** — replaced hand-written brace-counting parser in
+  `parseLoudnormJson` with concise regex extraction
+
+### Fixed
+
+- **TypeScript compilation** — resolved 5 TS errors: typed CLI action handler
+  parameter as `Record<string, unknown>` (4x TS18046); added missing
+  `sortBy`/`sortOrder` to test opts (1x TS2345)
+
+### Added
+
+- **Unit tests for `sortFileList`** — 5 tests covering name asc/desc, mtime
+  asc/desc, and empty array in `test/sort.test.ts`
+
 ## [0.4.0] - 2026-06-14
 
 ### Changed
@@ -92,6 +120,7 @@
 - TypeScript 6, tsdown build, Biome linting, Bun test
 - GitHub Actions CI + publish workflows
 
+[0.5.0]: https://github.com/zfadhli/peaknorm/compare/v0.4.0...v0.5.0
 [0.4.0]: https://github.com/zfadhli/peaknorm/compare/v0.3.0...v0.4.0
 [0.3.0]: https://github.com/zfadhli/peaknorm/compare/v0.2.4...v0.3.0
 [0.2.4]: https://github.com/zfadhli/peaknorm/compare/v0.2.3...v0.2.4

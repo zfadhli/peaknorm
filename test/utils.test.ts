@@ -1,5 +1,6 @@
 import { describe, expect, it } from "bun:test";
-import { isDirectory, isFile, parseFfmpegProgress } from "../src/utils.ts";
+import { parseFfmpegProgress } from "../src/ffmpeg/parse.ts";
+import { isDirectory, isFile } from "../src/fs.ts";
 
 describe("parseFfmpegProgress", () => {
 	it("parses time from ffmpeg output", () => {
