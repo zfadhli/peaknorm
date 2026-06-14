@@ -6,7 +6,7 @@
 [![TypeScript](https://img.shields.io/badge/TypeScript-6-3178c6?style=flat-square&logo=typescript&logoColor=white)](https://www.typescriptlang.org)
 [![Bun](https://img.shields.io/badge/Bun-≥1.2-000?style=flat-square&logo=bun&logoColor=white)](https://bun.sh)
 
-**Normalize audio loudness in media files** using EBU R128 standard via ffmpeg. Works with video files (video passthrough, audio re-encoded) and audio-only files.
+**Normalize audio loudness in media files** using the EBU R128 standard via ffmpeg. Works with video files (video passthrough, audio re-encoded) and audio-only files.
 
 ```bash
 npx peaknorm ./video.mp4
@@ -16,44 +16,51 @@ npx peaknorm ./video.mp4
 
 ## Features
 
-- **EBU R128 two-pass loudnorm** — measures integrated loudness, then applies linear normalization with precision
+- **EBU R128 two-pass loudnorm** — measures integrated loudness, LRA, and true peak, then applies linear normalization with precision
 - **Video passthrough** — video stream is copied untouched (`-c:v copy`), only audio is re-encoded
-- **In-place processing with backup** — overwrite originals safely with `.bak` / folder / suffix backup strategies
-- **Real-time progress bar** — shows `Analyzing` (Pass 1) and `Normalizing` (Pass 2) phases with percentage
-- **Batch folder processing** — recursive directory walk, configurable file extensions
-- **Dry-run mode** — preview operations without ffmpeg installed
-- **Programmatic API** — import `normalize()` in any TypeScript/Bun/Node project (Hono, Elysia, etc.)
+- **In-place processing with backup** — overwrite originals safely with `.bak` / folder / suffix backup strategies, or disable backup entirely
+- **Real-time progress** — per-file progress bar with phase labels (`Analyzing` / `Normalizing`) and percentage from ffmpeg
+- **Batch folder processing** — recursive directory walk with configurable file extensions and sort order
+- **Dry-run mode** — preview operations without requiring ffmpeg
+- **Cancellation** — abort long-running operations via `AbortSignal`
+- **Programmatic API** — import `normalize()`, `normalizeFile()`, or `normalizeFolder()` directly
 
 ## Installation
 
 ```bash
-# Install globally
 npm install -g peaknorm
+```
 
-# Or use directly
+Or use directly without installing:
+
+```bash
 npx peaknorm ./file.mp4
 ```
 
 > [!IMPORTANT]
-> [ffmpeg](https://ffmpeg.org) (≥4.2) must be installed on your system. On macOS: `brew install ffmpeg`, on Ubuntu: `sudo apt install ffmpeg`.
+> [ffmpeg](https://ffmpeg.org) (≥4.2) must be installed on your system.\
+> macOS: `brew install ffmpeg` — Ubuntu: `sudo apt install ffmpeg` — Windows: `choco install ffmpeg`
 
 ## CLI Usage
 
 ```bash
-# Normalize a single video (creates .bak, overwrites original)
+# Normalize a single video file (creates .bak, overwrites original)
 peaknorm movie.mp4
 
-# Normalize all media in a folder (recursive by default)
+# Normalize all media files in a folder (recursive by default)
 peaknorm ./videos
+
+# Output to a different directory instead of in-place
+peaknorm ./input -o ./output
 
 # Custom loudness target, disable backup, change audio codec
 peaknorm ./files -l -16 --no-backup --audio-codec aac --audio-bitrate 128k
 
-# Preview what would be done (no ffmpeg needed)
+# Preview without processing (no ffmpeg needed)
 peaknorm ./input --dry-run --verbose
 ```
 
-### Options
+### All options
 
 ```
   -o, --output <dir>       Output directory (default: same as input, in-place)
@@ -62,32 +69,34 @@ peaknorm ./input --dry-run --verbose
   -tp, --true-peak <num>   True peak limit in dBTP (default: -2)
   --audio-codec <name>     Audio codec (default: libopus)
   --audio-bitrate <str>    Audio bitrate (default: 96k)
-  -b, --backup <strategy>  Backup: copy, folder, suffix (default: copy)
+  -b, --backup <strategy>  Backup strategy: copy, folder, suffix (default: copy)
   --no-backup              Disable backup entirely
   -r, --recursive          Recurse subdirectories (default: true)
   --no-recursive           Don't recurse subdirectories
   -e, --ext <ext>          File extensions to process (repeatable)
   --ffmpeg-path <path>     Custom ffmpeg binary path
   --dry-run                Preview without processing
+  --sort-by <method>       Sort files by: name|mtime (default: name)
+  --sort-order <dir>       Sort direction: asc|desc (default: asc)
   --verbose                Verbose output
   -h, --help               Show help
-  --version                Show version
+  -v, --version            Show version
 ```
 
 ## Programmatic API
 
 ```ts
 import { normalize, normalizeFile, normalizeFolder } from "peaknorm";
-import {
-  PeaknormError,
-  FfmpegNotFoundError,
-  NormalizeError,
+import type {
+  NormalizeOptions,
+  NormalizeResult,
+  BatchResult,
 } from "peaknorm";
 ```
 
 ### normalize(input, options?)
 
-Auto-detects file or folder.
+Auto-detects whether the input is a file or a folder and processes accordingly.
 
 ```ts
 const batch = await normalize("./input.mp4", {
@@ -126,13 +135,15 @@ Normalize all media files in a directory. Returns a `BatchResult`.
 const batch = await normalizeFolder("./library", {
   extensions: [".flac", ".wav"],
   recursive: true,
+  sortBy: "mtime",
+  sortOrder: "desc",
   onFileError: (file, err) => {
     console.error(`Skipping ${file}: ${err.message}`);
   },
 });
 ```
 
-### AbortSignal support
+### Cancellation
 
 ```ts
 const ac = new AbortController();
@@ -143,38 +154,36 @@ const batch = await normalize("./big-folder", { signal: ac.signal });
 
 ## How it works
 
-Each file goes through a two-pass pipeline:
+Each file goes through a three-stage pipeline:
 
 ```
-1. Probe     ffmpeg -i input → parse Duration + Stream info (~200ms)
-             ↓
-2. Analyze   ffmpeg -i input -af loudnorm=print_format=json -f null -
-             → measures input_i, input_lra, input_tp, input_thresh, offset
-             ↓
-3. Normalize ffmpeg -i input -c:v copy -af loudnorm=linear=true:measured_*...
-             -c:a libopus -b:a 96k output
+┌──────────┐    ┌──────────┐    ┌─────────────┐
+│  Probe   │ →  │ Measure  │ →  │  Normalize  │
+│ (~200ms) │    │ (Pass 1) │    │  (Pass 2)   │
+└──────────┘    └──────────┘    └─────────────┘
 ```
 
-### Step details
-
-| Phase | What happens | Progress shown |
+| Stage | Action | Progress |
 |---|---|---|
-| **Starting** | File path resolved, backup created | `Starting filename...` |
-| **Analyzing** | Pass 1 — ffmpeg measures integrated loudness, LRA, true peak | `████░░░░ 35% Analyzing` |
-| **Normalizing** | Pass 2 — ffmpeg applies linear normalization with measured values, stream-copies video, re-encodes audio | `██████░░ 68% Normalizing` |
+| **Probe** | `ffprobe` reads stream info and duration | — (instant) |
+| **Measure** | `ffmpeg -af loudnorm=print_format=json` measures integrated loudness, LRA, true peak | `Analyzing [████░░░░] 35%` |
+| **Normalize** | `ffmpeg -c:v copy -af loudnorm=linear=true:measured_I=...` applies correction, stream-copies video, re-encodes audio | `Normalizing [██████░░] 68%` |
+
+> [!TIP]
+> If the measured values contain `-inf` or `nan` (very quiet or silent content), peaknorm automatically falls back to dynamic loudnorm without `linear=true` or `measured_*` parameters.
 
 ### Backup strategies
+
+On failure, the original is restored from the backup and partial output is deleted.
 
 | Strategy | Behavior |
 |---|---|
 | `copy` (default) | `file.bak` alongside original |
-| `folder` | `backups/file` in a `backups/` subdirectory |
+| `folder` | `backups/file` in a subdirectory |
 | `suffix` | Renames original to `file.original` |
 | `false` / `--no-backup` | No backup created |
 
-On failure, the original is restored from the backup and partial output is deleted.
-
-## Types
+## Options reference
 
 ### NormalizeOptions
 
@@ -185,30 +194,34 @@ On failure, the original is restored from the backup and partial output is delet
 | `truePeak` | `number` | `-2` | True peak limit in dBTP |
 | `audioCodec` | `string` | `"libopus"` | Output audio codec |
 | `audioBitrate` | `string` | `"96k"` | Output audio bitrate |
-| `output` | `string` | — | Output directory (omitted = in-place) |
+| `output` | `string` | — | Output directory (omit for in-place) |
 | `backup` | `BackupStrategy \| boolean` | `"copy"` | Backup strategy (`false` to disable) |
 | `recursive` | `boolean` | `true` | Recurse subdirectories |
-| `extensions` | `string[]` | — | File extensions to process (default: 15 common media types) |
+| `extensions` | `string[]` | _(see below)_ | File extensions to process |
 | `ffmpegPath` | `string` | — | Custom ffmpeg binary path |
 | `dryRun` | `boolean` | `false` | Preview without processing |
+| `sortBy` | `"name" \| "mtime"` | `"name"` | Sort files by name or modification time |
+| `sortOrder` | `"asc" \| "desc"` | `"asc"` | Sort direction |
 | `signal` | `AbortSignal` | — | Cancellation signal |
 | `onFileStart` | `(input, output) => void` | — | Called when a file starts |
-| `onFileProgress` | `(file, percent, phase) => void` | — | Progress callback (percent 0–100, phase is `"analyzing"` or `"normalizing"`) |
+| `onFileProgress` | `(file, percent, phase) => void` | — | Progress callback (0–100, `"analyzing"` or `"normalizing"`) |
 | `onFileComplete` | `(result) => void` | — | Called when a file finishes |
 | `onFileError` | `(input, error) => void` | — | Called when a file errors |
+
+**Default extensions:** `.mp4` `.mkv` `.avi` `.mov` `.webm` `.m4v` `.ts` `.mp3` `.wav` `.flac` `.m4a` `.ogg` `.wma` `.aac` `.opus`
 
 ### NormalizeResult
 
 ```ts
 interface NormalizeResult {
-  input: string;           // Input file path
-  output: string;          // Output file path
+  input: string;                // Input file path
+  output: string;               // Output file path
   status: "completed" | "skipped" | "error";
-  error?: string;          // Error message if status is "error"
-  backupPath?: string;     // Path to backup file (if created)
+  error?: string;               // Error message if status is "error"
+  backupPath?: string;          // Path to backup file
   inputSizeBytes: number;
   outputSizeBytes: number;
-  durationMs: number;      // Processing time
+  durationMs: number;           // Processing time in milliseconds
 }
 ```
 
@@ -227,18 +240,16 @@ interface BatchResult {
 
 ## Error handling
 
-Peaknorm defines a hierarchy of error classes:
+Peaknorm defines a typed error hierarchy so you can catch specific failures:
 
 ```
 PeaknormError
 ├── FfmpegNotFoundError   — ffmpeg not on PATH or at custom path
-├── FfmpegError           — ffmpeg subprocess failed (exit code + stderr tail)
+├── FfmpegError           — ffmpeg subprocess failed (exit code + stderr)
 ├── NormalizeError        — normalization failed for a specific file
-├── BackupError           — backup creation/restore failed
-└── NoMediaFilesError     — no matching files found in the given folder
+├── BackupError           — backup creation or restore failed
+└── NoMediaFilesError     — no matching files in the target folder
 ```
-
-All errors extend `PeaknormError`, which extends `Error`. Catch broadly or specifically:
 
 ```ts
 import { PeaknormError, FfmpegNotFoundError } from "peaknorm";
@@ -254,13 +265,16 @@ try {
 }
 ```
 
-Per-file errors don't fail the batch — the file is marked as `error` in the results and processing continues.
+> [!NOTE]
+> Per-file errors don't fail the batch — the file is marked as `error` in the results and processing continues with the next file.
 
 ## Supported formats
 
 **Video containers:** `.mp4` `.mkv` `.avi` `.mov` `.webm` `.m4v` `.ts`
 
 **Audio containers:** `.mp3` `.wav` `.flac` `.m4a` `.ogg` `.wma` `.aac` `.opus`
+
+Customize with the `--ext` flag or `extensions` option.
 
 ## Development
 
@@ -270,13 +284,13 @@ git clone https://github.com/zfadhli/peaknorm.git
 cd peaknorm
 bun install
 
-# Dev workflow
-bun run dev -- ./file.mp4 --dry-run  # Run CLI from source
-bun run check                         # Lint + format
-bun run typecheck                     # TypeScript check
-bun run test                          # Run tests
-bun run build                         # Build dist/
+# Run the CLI from source
+bun run dev -- ./file.mp4 --dry-run
 
-# Integration tests (requires ffmpeg)
-bun run test:integration
+# Development commands
+bun run check          # Lint + format check (Biome)
+bun run typecheck      # TypeScript type check (tsc --noEmit)
+bun run test           # Run unit tests
+bun run test:integration  # Integration tests (requires ffmpeg)
+bun run build          # Build dist/ via tsdown
 ```
