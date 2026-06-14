@@ -1,5 +1,20 @@
 # Changelog
 
+## [0.3.0] - 2026-06-14
+
+### Added
+
+- `--sort-by name|mtime` and `--sort-order asc|desc` CLI flags to control
+  batch processing order — useful for processing newest files first or
+  maintaining album track sequence
+- `sortBy` and `sortOrder` options in the programmatic API (`NormalizeOptions`)
+
+### Fixed
+
+- Media probing race condition where files with an audio stream were
+  incorrectly reported as having no audio — switched from `ffmpeg -i`
+  stderr parsing to `ffprobe` JSON output for reliable stream detection
+
 ## [0.2.4] - 2026-06-10
 
 ### Fixed
@@ -65,6 +80,7 @@
 - TypeScript 6, tsdown build, Biome linting, Bun test
 - GitHub Actions CI + publish workflows
 
+[0.3.0]: https://github.com/zfadhli/peaknorm/compare/v0.2.4...v0.3.0
 [0.2.4]: https://github.com/zfadhli/peaknorm/compare/v0.2.3...v0.2.4
 [0.2.3]: https://github.com/zfadhli/peaknorm/compare/v0.2.2...v0.2.3
 [0.2.2]: https://github.com/zfadhli/peaknorm/compare/v0.2.1...v0.2.2

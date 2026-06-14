@@ -25,6 +25,10 @@ export interface NormalizeOptions {
 	dryRun?: boolean;
 	/** AbortSignal for cancellation */
 	signal?: AbortSignal;
+	/** Sort order for batch processing: by name or modification time (default: "name") */
+	sortBy?: "name" | "mtime";
+	/** Sort direction for batch processing (default: "asc") */
+	sortOrder?: "asc" | "desc";
 	/** Callback when a file starts processing */
 	onFileStart?: (input: string, output: string) => void;
 	/** Callback for per-file progress (0–100, phase) */
@@ -94,6 +98,8 @@ export interface ResolvedOptions {
 	ffmpegPath: string;
 	dryRun: boolean;
 	signal: AbortSignal | null;
+	sortBy: "name" | "mtime";
+	sortOrder: "asc" | "desc";
 	onFileStart: ((input: string, output: string) => void) | null;
 	onFileProgress:
 		| ((file: string, percent: number, phase: NormalizePhase) => void)

@@ -40,6 +40,14 @@ cli
 	.option("-e, --ext <ext>", "File extensions to process (repeatable)")
 	.option("--ffmpeg-path <path>", "Custom ffmpeg binary path")
 	.option("--dry-run", "Preview without processing")
+	.option(
+		"--sort-by <method>",
+		"Sort files by: name|mtime (default: name)",
+	)
+	.option(
+		"--sort-order <dir>",
+		"Sort direction: asc|desc (default: asc)",
+	)
 	.option("--verbose", "Verbose output");
 
 cli.help();
@@ -98,6 +106,8 @@ if (cliOpts.recursive === false) options.recursive = false;
 if (cliOpts.ext !== undefined) options.extensions = cliOpts.ext;
 if (cliOpts.ffmpegPath !== undefined) options.ffmpegPath = cliOpts.ffmpegPath;
 if (cliOpts.dryRun !== undefined) options.dryRun = cliOpts.dryRun;
+if (cliOpts.sortBy !== undefined) options.sortBy = cliOpts.sortBy;
+if (cliOpts.sortOrder !== undefined) options.sortOrder = cliOpts.sortOrder;
 
 const verbose = cliOpts.verbose === true;
 

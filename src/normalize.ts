@@ -1,4 +1,4 @@
-import { renameSync, unlinkSync } from "node:fs";
+import { renameSync, statSync, unlinkSync } from "node:fs";
 import { basename, extname, join, resolve } from "node:path";
 import { performance } from "node:perf_hooks";
 import {
@@ -54,6 +54,8 @@ const DEFAULTS: ResolvedOptions = {
 	ffmpegPath: "ffmpeg",
 	dryRun: false,
 	signal: null,
+	sortBy: "name",
+	sortOrder: "asc",
 	onFileStart: null,
 	onFileProgress: null,
 	onFileComplete: null,
@@ -290,12 +292,15 @@ export async function normalizeFolder(
 		throw new NoMediaFilesError(dirPath);
 	}
 
+	// Sort files based on options
+	const sorted = sortFileList(files, resolved.sortBy, resolved.sortOrder);
+
 	const results: NormalizeResult[] = [];
 	let completed = 0;
 	let skipped = 0;
 	let errors = 0;
 
-	for (const file of files) {
+	for (const file of sorted) {
 		try {
 			const result = await normalizeFile(file, opts);
 			results.push(result);
@@ -326,6 +331,37 @@ export async function normalizeFolder(
 		results,
 		durationMs: Math.round(performance.now() - batchStart),
 	};
+}
+
+/**
+ * Sort a list of file paths by the given criterion and direction.
+ */
+function sortFileList(
+	files: string[],
+	by: "name" | "mtime",
+	order: "asc" | "desc",
+): string[] {
+	if (by === "name") {
+		// findMediaFiles already sorts lexicographically ascending
+		return order === "asc" ? files : [...files].reverse();
+	}
+
+	// Sort by modification time
+	const entries = files.map((f) => {
+		let mtime = 0;
+		try {
+			mtime = statSync(f).mtimeMs;
+		} catch {
+			// file may have been removed between discovery and sorting
+		}
+		return { path: f, mtime };
+	});
+
+	entries.sort((a, b) =>
+		order === "asc" ? a.mtime - b.mtime : b.mtime - a.mtime,
+	);
+
+	return entries.map((e) => e.path);
 }
 
 /**
