@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.4.0] - 2026-06-14
+
+### Changed
+
+- CLI migrated from `cac` + `picocolors` to `@zfadhli/koko-cli` — uses
+  `createCLI` builder pattern, `color` palette, and koko's spinner (`analyzing`
+  phase) + progress bar (`normalizing` phase) for per-file progress UX
+
+### Removed
+
+- `cac` and `picocolors` dependencies — replaced by `@zfadhli/koko-cli`
+
 ## [0.3.0] - 2026-06-14
 
 ### Added
@@ -80,6 +92,7 @@
 - TypeScript 6, tsdown build, Biome linting, Bun test
 - GitHub Actions CI + publish workflows
 
+[0.4.0]: https://github.com/zfadhli/peaknorm/compare/v0.3.0...v0.4.0
 [0.3.0]: https://github.com/zfadhli/peaknorm/compare/v0.2.4...v0.3.0
 [0.2.4]: https://github.com/zfadhli/peaknorm/compare/v0.2.3...v0.2.4
 [0.2.3]: https://github.com/zfadhli/peaknorm/compare/v0.2.2...v0.2.3
