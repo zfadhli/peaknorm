@@ -1,12 +1,7 @@
 #!/usr/bin/env bun
 import { readFileSync } from "node:fs";
 import { basename, resolve } from "node:path";
-import {
-	color,
-	createCLI,
-	createProgress,
-	createSpinner,
-} from "@zfadhli/koko-cli";
+import { color, createCLI, createProgress } from "@zfadhli/koko-cli";
 import { PeaknormError } from "./errors.ts";
 import { detectFfmpeg } from "./ffmpeg/index.ts";
 import { formatResult } from "./format.ts";
@@ -116,8 +111,7 @@ cli.command("[input]", "File or folder to normalize", (cmd) => {
 			console.error(`Options: ${JSON.stringify(normalizeOpts, null, 2)}`);
 		}
 
-		// ─── Spinner + Progress bar instances ─────────────
-		let spin: ReturnType<typeof createSpinner> | null = null;
+		// ─── Progress bar instance ────────────────────────
 		let progressBar: ReturnType<typeof createProgress> | null = null;
 
 		// ─── Run normalization ────────────────────────────────
@@ -127,37 +121,30 @@ cli.command("[input]", "File or folder to normalize", (cmd) => {
 				onFileStart: (input) => {
 					if (progressBar) {
 						progressBar.stop();
-						progressBar = null;
 					}
-					spin = createSpinner(basename(input));
-					spin.start();
+					progressBar = createProgress({
+						total: 100,
+						clearOnComplete: true,
+						format: "{phase} [{bar}] {percentage}% | {file}",
+					});
+					progressBar.update(0, {
+						phase: "Analyzing",
+						file: basename(input),
+					});
 				},
 				onFileProgress: (_file, percent, phase) => {
-					const name = basename(_file);
-					if (phase === "analyzing" && spin) {
-						spin.text = `Analyzing ${name} ${percent}%`;
-					} else if (phase === "normalizing") {
-						if (spin) {
-							spin.succeed(`Analysis complete`);
-							spin = null;
-						}
-						if (!progressBar) {
-							progressBar = createProgress({
-								total: 100,
-								clearOnComplete: true,
-							});
-						}
-						progressBar.update(percent);
-					}
+					if (!progressBar) return;
+					const label =
+						phase === "analyzing" ? "Analyzing" : "Normalizing";
+					progressBar.update(percent, {
+						phase: label,
+						file: basename(_file),
+					});
 				},
 				onFileComplete: (result: NormalizeResult) => {
 					if (progressBar) {
 						progressBar.stop();
 						progressBar = null;
-					}
-					if (spin) {
-						spin.stop();
-						spin = null;
 					}
 					writeFormattedResult(result);
 				},

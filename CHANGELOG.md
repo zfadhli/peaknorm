@@ -1,5 +1,14 @@
 # Changelog
 
+## [0.5.1] - 2026-06-14
+
+### Changed
+
+- Per-file progress now uses a progress bar consistently for both
+  "Analyzing" and "Normalizing" phases — replaces the spinner that
+  was previously used during analysis, since both phases report
+  real-time percentage progress from ffmpeg
+
 ## [0.5.0] - 2026-06-14
 
 ### Refactored
@@ -120,6 +129,7 @@
 - TypeScript 6, tsdown build, Biome linting, Bun test
 - GitHub Actions CI + publish workflows
 
+[0.5.1]: https://github.com/zfadhli/peaknorm/compare/v0.5.0...v0.5.1
 [0.5.0]: https://github.com/zfadhli/peaknorm/compare/v0.4.0...v0.5.0
 [0.4.0]: https://github.com/zfadhli/peaknorm/compare/v0.3.0...v0.4.0
 [0.3.0]: https://github.com/zfadhli/peaknorm/compare/v0.2.4...v0.3.0
