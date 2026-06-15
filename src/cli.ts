@@ -134,8 +134,7 @@ cli.command("[input]", "File or folder to normalize", (cmd) => {
 				},
 				onFileProgress: (_file, percent, phase) => {
 					if (!progressBar) return;
-					const label =
-						phase === "analyzing" ? "Analyzing" : "Normalizing";
+					const label = phase === "analyzing" ? "Analyzing" : "Normalizing";
 					progressBar.update(percent, {
 						phase: label,
 						file: basename(_file),

@@ -1,6 +1,6 @@
 {
 	"name": "peaknorm",
-	"version": "0.5.1",
+	"version": "0.5.2",
 	"description": "Normalize audio in media files using EBU R128 (ffmpeg loudnorm)",
 	"type": "module",
 	"bin": {
@@ -52,7 +52,7 @@
 		"url": "git+https://github.com/zfadhli/peaknorm.git"
 	},
 	"devDependencies": {
-		"@biomejs/biome": "^2.4.16",
+		"@biomejs/biome": "^2.5.0",
 		"@types/bun": "latest",
 		"tsdown": "^0.22.2",
 		"typescript": "^6"
@@ -61,7 +61,7 @@
 		"typescript": "^6"
 	},
 	"dependencies": {
-		"@zfadhli/koko-cli": "^0.1.0"
+		"@zfadhli/koko-cli": "^0.2.0"
 	},
 	"engines": {
 		"bun": ">=1.2"
