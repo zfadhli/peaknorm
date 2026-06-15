@@ -1,6 +1,6 @@
 {
 	"name": "peaknorm",
-	"version": "0.5.1",
+	"version": "0.5.2",
 	"description": "Normalize audio in media files using EBU R128 (ffmpeg loudnorm)",
 	"type": "module",
 	"bin": {
