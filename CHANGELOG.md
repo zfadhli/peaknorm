@@ -5,10 +5,8 @@
 ### Changed
 
 - **Breaking:** Backup is now **disabled by default** — use `--backup copy`
-  (or `folder`/`suffix`) to opt in. `--no-backup` is now redundant but
-  accepted for clarity.
-- Removed `--no-backup` CLI flag (redundant — backup is now disabled
-  by default).
+  (or `folder`/`suffix`) to opt in.
+- Removed `--no-backup` CLI flag (redundant with new default).
 
 ## [0.5.3] - 2026-06-16
 
