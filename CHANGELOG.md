@@ -1,5 +1,15 @@
 # Changelog
 
+## [0.6.0] - 2026-06-16
+
+### Changed
+
+- **Breaking:** Backup is now **disabled by default** — use `--backup copy`
+  (or `folder`/`suffix`) to opt in. `--no-backup` is now redundant but
+  accepted for clarity.
+- Removed `--no-backup` CLI flag (redundant — backup is now disabled
+  by default).
+
 ## [0.5.3] - 2026-06-16
 
 ### Changed
@@ -145,6 +155,7 @@
 - TypeScript 6, tsdown build, Biome linting, Bun test
 - GitHub Actions CI + publish workflows
 
+[0.6.0]: https://github.com/zfadhli/peaknorm/compare/v0.5.3...v0.6.0
 [0.5.3]: https://github.com/zfadhli/peaknorm/compare/v0.5.2...v0.5.3
 [0.5.2]: https://github.com/zfadhli/peaknorm/compare/v0.5.1...v0.5.2
 [0.5.1]: https://github.com/zfadhli/peaknorm/compare/v0.5.0...v0.5.1

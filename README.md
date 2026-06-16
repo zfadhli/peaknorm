@@ -18,7 +18,7 @@ npx peaknorm ./video.mp4
 
 - **EBU R128 two-pass loudnorm** — measures integrated loudness, LRA, and true peak, then applies linear normalization with precision
 - **Video passthrough** — video stream is copied untouched (`-c:v copy`), only audio is re-encoded
-- **In-place processing with backup** — overwrite originals safely with `.bak` / folder / suffix backup strategies, or disable backup entirely
+- **In-place processing** — overwrite originals safely; optional `.bak` / folder / suffix backup strategies
 - **Real-time progress** — per-file progress bar with phase labels (`Analyzing` / `Normalizing`) and percentage from ffmpeg
 - **Batch folder processing** — recursive directory walk with configurable file extensions and sort order
 - **Dry-run mode** — preview operations without requiring ffmpeg
@@ -53,8 +53,8 @@ peaknorm ./videos
 # Output to a different directory instead of in-place
 peaknorm ./input -o ./output
 
-# Custom loudness target, disable backup, change audio codec
-peaknorm ./files -l -16 --no-backup --audio-codec aac --audio-bitrate 128k
+# Custom loudness target, change audio codec
+peaknorm ./files -l -16 --audio-codec aac --audio-bitrate 128k
 
 # Preview without processing (no ffmpeg needed)
 peaknorm ./input --dry-run --verbose
@@ -69,8 +69,7 @@ peaknorm ./input --dry-run --verbose
   -tp, --true-peak <num>   True peak limit in dBTP (default: -2)
   --audio-codec <name>     Audio codec (default: libopus)
   --audio-bitrate <str>    Audio bitrate (default: 96k)
-  -b, --backup <strategy>  Backup strategy: copy, folder, suffix (default: copy)
-  --no-backup              Disable backup entirely
+  -b, --backup <strategy>  Backup strategy: copy, folder, suffix (default: disabled)
   -r, --recursive          Recurse subdirectories (default: true)
   --no-recursive           Don't recurse subdirectories
   -e, --ext <ext>          File extensions to process (repeatable)
@@ -178,10 +177,10 @@ On failure, the original is restored from the backup and partial output is delet
 
 | Strategy | Behavior |
 |---|---|
-| `copy` (default) | `file.bak` alongside original |
+| `false` (default) | No backup created |
+| `copy` | `file.bak` alongside original |
 | `folder` | `backups/file` in a subdirectory |
 | `suffix` | Renames original to `file.original` |
-| `false` / `--no-backup` | No backup created |
 
 ## Options reference
 
@@ -195,7 +194,7 @@ On failure, the original is restored from the backup and partial output is delet
 | `audioCodec` | `string` | `"libopus"` | Output audio codec |
 | `audioBitrate` | `string` | `"96k"` | Output audio bitrate |
 | `output` | `string` | — | Output directory (omit for in-place) |
-| `backup` | `BackupStrategy \| boolean` | `"copy"` | Backup strategy (`false` to disable) |
+| `backup` | `BackupStrategy \| boolean` | `false` | Backup strategy (`false` to disable) |
 | `recursive` | `boolean` | `true` | Recurse subdirectories |
 | `extensions` | `string[]` | _(see below)_ | File extensions to process |
 | `ffmpegPath` | `string` | — | Custom ffmpeg binary path |

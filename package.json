@@ -1,69 +1,70 @@
 {
-	"name": "peaknorm",
-	"version": "0.5.3",
-	"description": "Normalize audio in media files using EBU R128 (ffmpeg loudnorm)",
-	"type": "module",
-	"bin": {
-		"peaknorm": "./dist/cli.mjs"
-	},
-	"main": "./dist/index.mjs",
-	"types": "./dist/index.d.mts",
-	"exports": {
-		".": {
-			"types": "./dist/index.d.mts",
-			"default": "./dist/index.mjs"
-		},
-		"./cli": {
-			"types": "./dist/cli.d.mts",
-			"default": "./dist/cli.mjs"
-		}
-	},
-	"files": [
-		"dist",
-		"README.md",
-		"LICENSE"
-	],
-	"scripts": {
-		"dev": "bun src/cli.ts",
-		"build": "tsdown",
-		"prepublishOnly": "tsdown",
-		"check": "biome check .",
-		"check:write": "biome check --write .",
-		"format": "biome format .",
-		"format:write": "biome format --write .",
-		"lint": "biome lint .",
-		"lint:write": "biome lint --write .",
-		"typecheck": "tsc --noEmit",
-		"test": "bun test",
-		"test:integration": "bun test -- --integration"
-	},
-	"keywords": [
-		"audio",
-		"normalization",
-		"loudnorm",
-		"ebu-r128",
-		"ffmpeg",
-		"opus",
-		"video"
-	],
-	"license": "MIT",
-	"repository": {
-		"type": "git",
-		"url": "git+https://github.com/zfadhli/peaknorm.git"
-	},
-	"devDependencies": {
-		"@biomejs/biome": "^2.5.0",
-		"@types/bun": "latest",
-		"tsdown": "^0.22.2",
-		"typescript": "^6"
-	},
-	"peerDependencies": {
-		"typescript": "^6"
-	},
-	"dependencies": {
-		"@zfadhli/koko-cli": "^0.2.1"
-	},
-	"engines": {
-		"bun": ">=1.2"
-	}
+  "name": "peaknorm",
+  "version": "0.6.0",
+  "description": "Normalize audio in media files using EBU R128 (ffmpeg loudnorm)",
+  "type": "module",
+  "bin": {
+    "peaknorm": "./dist/cli.mjs"
+  },
+  "main": "./dist/index.mjs",
+  "types": "./dist/index.d.mts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.mts",
+      "default": "./dist/index.mjs"
+    },
+    "./cli": {
+      "types": "./dist/cli.d.mts",
+      "default": "./dist/cli.mjs"
+    }
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE"
+  ],
+  "scripts": {
+    "dev": "bun src/cli.ts",
+    "build": "tsdown",
+    "prepublishOnly": "tsdown",
+    "check": "biome check .",
+    "check:write": "biome check --write .",
+    "format": "biome format .",
+    "format:write": "biome format --write .",
+    "lint": "biome lint .",
+    "lint:write": "biome lint --write .",
+    "typecheck": "tsc --noEmit",
+    "test": "bun test",
+    "test:integration": "bun test -- --integration"
+  },
+  "keywords": [
+    "audio",
+    "normalization",
+    "loudnorm",
+    "ebu-r128",
+    "ffmpeg",
+    "opus",
+    "video"
+  ],
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/zfadhli/peaknorm.git"
+  },
+  "devDependencies": {
+    "@biomejs/biome": "^2.5.0",
+    "@types/bun": "latest",
+    "lefthook": "^2.1.9",
+    "tsdown": "^0.22.2",
+    "typescript": "^6"
+  },
+  "peerDependencies": {
+    "typescript": "^6"
+  },
+  "dependencies": {
+    "@zfadhli/koko-cli": "^0.2.1"
+  },
+  "engines": {
+    "bun": ">=1.2"
+  }
 }
