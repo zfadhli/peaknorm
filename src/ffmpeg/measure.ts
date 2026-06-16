@@ -30,6 +30,8 @@ export async function measureLoudness(
         ...(isMov ? ["-ignore_editlist", "1"] : []),
         "-i",
         inputPath,
+        "-vn",
+        "-sn",
         "-af",
         `loudnorm=I=${loudness}:LRA=${lra}:TP=${truePeak}:print_format=json`,
         "-f",
@@ -39,7 +41,7 @@ export async function measureLoudness(
       {
         stdio: ["ignore", "pipe", "pipe"],
         signal,
-        timeout: 300_000, // 5 minutes
+        timeout: 0, // measurement must complete naturally; cancel via AbortSignal
       },
     )
 

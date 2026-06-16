@@ -1,12 +1,28 @@
 # Changelog
 
-## [0.6.2] - 2026-06-16
+## [0.7.0] - 2026-06-17
+
+### Added
+
+- **One-pass dynamic loudnorm mode** (`--dynamic`) — skips the measurement
+  pass and normalizes in a single pass. Much faster for very long files
+  (e.g., 19-hour recordings). Use `--dynamic` CLI flag or
+  `{ dynamic: true }` API option.
+
+### Changed
+
+- Measurement pass now skips video and subtitle decoding (`-vn -sn`) —
+  matches ffmpeg-normalize behavior, significantly faster on video files
+- Removed arbitrary 5-minute timeout on measurement — process now runs
+  until completion; cancellation via Ctrl+C / AbortSignal
 
 ### Fixed
 
 - `-ignore_editlist 1` now correctly placed **before** `-i` and only applied to
   MOV/MP4 containers (`.mp4`, `.mov`, `.m4a`, `.m4v`, `.3gp`, `.3g2`) — fixes the
   previous fix that silently placed it after `-i` where ffmpeg ignored it
+
+## [0.6.2] - 2026-06-16
 
 ## [0.6.1] - 2026-06-16
 
@@ -169,6 +185,7 @@
 - TypeScript 6, tsdown build, Biome linting, Bun test
 - GitHub Actions CI + publish workflows
 
+[0.7.0]: https://github.com/zfadhli/peaknorm/compare/v0.6.2...v0.7.0
 [0.6.2]: https://github.com/zfadhli/peaknorm/compare/v0.6.1...v0.6.2
 [0.6.1]: https://github.com/zfadhli/peaknorm/compare/v0.6.0...v0.6.1
 [0.6.0]: https://github.com/zfadhli/peaknorm/compare/v0.5.3...v0.6.0

@@ -31,6 +31,7 @@ const DEFAULTS: ResolvedOptions = {
   extensions: DEFAULT_EXTENSIONS,
   ffmpegPath: "ffmpeg",
   dryRun: false,
+  dynamic: false,
   signal: null,
   sortBy: "name",
   sortOrder: "asc",

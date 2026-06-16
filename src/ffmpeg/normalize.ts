@@ -16,7 +16,7 @@ export async function normalizeMediaFile(
   ffmpegPath: string,
   inputPath: string,
   outputPath: string,
-  measurement: LoudnessMeasurement,
+  measurement: LoudnessMeasurement | null,
   opts: ResolvedOptions,
   totalDuration: number,
   signal?: AbortSignal,
@@ -49,6 +49,7 @@ export async function normalizeMediaFile(
     }
 
     if (
+      measurement !== null &&
       isValidNum(measurement.inputI) &&
       isValidNum(measurement.inputLra) &&
       isValidNum(measurement.inputTp) &&
