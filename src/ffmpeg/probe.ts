@@ -100,9 +100,18 @@ async function probeWithFfmpeg(
   signal?: AbortSignal,
 ): Promise<MediaProbeResult> {
   return new Promise<MediaProbeResult>((resolve, reject) => {
+    const isMov = /\.(mp4|mov|m4a|m4v|3gp|3g2)$/i.test(inputPath)
     const proc = spawn(
       ffmpegPath,
-      ["-hide_banner", "-i", inputPath, "-ignore_editlist", "1", "-f", "null", "-"],
+      [
+        "-hide_banner",
+        ...(isMov ? ["-ignore_editlist", "1"] : []),
+        "-i",
+        inputPath,
+        "-f",
+        "null",
+        "-",
+      ],
       {
         stdio: ["ignore", "pipe", "pipe"],
         signal,

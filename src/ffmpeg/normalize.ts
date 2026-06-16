@@ -23,13 +23,13 @@ export async function normalizeMediaFile(
   onProgress?: (percent: number) => void,
 ): Promise<void> {
   return new Promise<void>((resolve, reject) => {
+    const isMov = /\.(mp4|mov|m4a|m4v|3gp|3g2)$/i.test(inputPath)
     const args: string[] = [
       "-hide_banner",
       "-y",
+      ...(isMov ? ["-ignore_editlist", "1"] : []),
       "-i",
       inputPath,
-      "-ignore_editlist",
-      "1",
       "-map",
       "0",
     ]
