@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.5.3] - 2026-06-16
+
+### Changed
+
+- Upgraded `@zfadhli/koko-cli` to 0.2.1 — fixes progress bar custom
+  tokens (`{phase}`, `{file}`) showing literally on first render
+
 ## [0.5.2] - 2026-06-15
 
 ### Changed
@@ -138,6 +145,7 @@
 - TypeScript 6, tsdown build, Biome linting, Bun test
 - GitHub Actions CI + publish workflows
 
+[0.5.3]: https://github.com/zfadhli/peaknorm/compare/v0.5.2...v0.5.3
 [0.5.2]: https://github.com/zfadhli/peaknorm/compare/v0.5.1...v0.5.2
 [0.5.1]: https://github.com/zfadhli/peaknorm/compare/v0.5.0...v0.5.1
 [0.5.0]: https://github.com/zfadhli/peaknorm/compare/v0.4.0...v0.5.0
