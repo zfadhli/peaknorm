@@ -21,15 +21,15 @@ export async function measureLoudness(
   onProgress?: (percent: number) => void,
 ): Promise<LoudnessMeasurement | null> {
   return new Promise((resolve, reject) => {
+    const isMov = /\.(mp4|mov|m4a|m4v|3gp|3g2)$/i.test(inputPath)
     const proc = spawn(
       ffmpegPath,
       [
         "-hide_banner",
         "-y",
+        ...(isMov ? ["-ignore_editlist", "1"] : []),
         "-i",
         inputPath,
-        "-ignore_editlist",
-        "1",
         "-af",
         `loudnorm=I=${loudness}:LRA=${lra}:TP=${truePeak}:print_format=json`,
         "-f",
