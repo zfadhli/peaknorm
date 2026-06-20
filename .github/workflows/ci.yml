@@ -7,26 +7,30 @@ on:
     branches: [main]
 
 jobs:
-  quality:
+  check:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
 
-      - uses: oven-sh/setup-bun@v2
+      - uses: nubjs/setup-nub@v0
         with:
-          bun-version: latest
+          cache: true
 
       - name: Install dependencies
-        run: bun install --frozen-lockfile
+        run: nub install --frozen-lockfile
 
-      - name: Lint & format
-        run: bun run check
+      - name: Check formatting and lint
+        run: nub run check
 
-      - name: Typecheck
-        run: bun run typecheck
+      - name: TypeScript type check
+        run: nub run typecheck
 
       - name: Build
-        run: bun run build
+        run: nub run build
 
-      - name: Test
-        run: bun run test
+      - name: Run unit tests
+        run: nub run test
+
+      - name: Integration tests
+        run: nub run test:integration
+        continue-on-error: true

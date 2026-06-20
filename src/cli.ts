@@ -16,6 +16,7 @@ interface OptionMapping {
 }
 
 const OPTION_MAPPINGS: OptionMapping[] = [
+  { cliName: "preset", normalizeName: "preset" },
   { cliName: "output", normalizeName: "output" },
   { cliName: "loudness", normalizeName: "loudness", coerce: Number },
   { cliName: "lra", normalizeName: "lra", coerce: Number },
@@ -27,6 +28,8 @@ const OPTION_MAPPINGS: OptionMapping[] = [
   { cliName: "ffmpegPath", normalizeName: "ffmpegPath" },
   { cliName: "dryRun", normalizeName: "dryRun" },
   { cliName: "dynamic", normalizeName: "dynamic" },
+  { cliName: "batch", normalizeName: "batch" },
+  { cliName: "lowerOnly", normalizeName: "lowerOnly" },
   { cliName: "sortBy", normalizeName: "sortBy" },
   { cliName: "sortOrder", normalizeName: "sortOrder" },
 ]
@@ -52,6 +55,10 @@ const cli = createCLI("peaknorm", getVersion()).description(
 
 cli.command("[input]", "File or folder to normalize", (cmd) => {
   cmd.option("-o, --output <dir>", "Output directory (default: same as input)")
+  cmd.option(
+    "--preset <name>",
+    "Named preset: music|podcast|streaming-video (overridden by individual options)",
+  )
   cmd.option("-l, --loudness <num>", "Target loudness in LUFS (default: -14)")
   cmd.option("--lra <num>", "Loudness range in LU (default: 7)")
   cmd.option("-tp, --true-peak <num>", "True peak limit in dBTP (default: -2)")
@@ -63,6 +70,11 @@ cli.command("[input]", "File or folder to normalize", (cmd) => {
   cmd.option("--ffmpeg-path <path>", "Custom ffmpeg binary path")
   cmd.option("--dry-run", "Preview without processing")
   cmd.option("--dynamic", "One-pass dynamic loudnorm (skip measurement, faster for long files)")
+  cmd.option(
+    "--batch",
+    "Album mode: measure all files first, apply unified gain preserving relative loudness",
+  )
+  cmd.option("--lower-only", "Only reduce loudness, never amplify (skip if already below target)")
   cmd.option("--sort-by <method>", "Sort files by: name|mtime (default: name)")
   cmd.option("--sort-order <dir>", "Sort direction: asc|desc (default: asc)")
   cmd.option("--verbose", "Verbose output")
