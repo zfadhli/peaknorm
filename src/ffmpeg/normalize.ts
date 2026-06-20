@@ -76,7 +76,7 @@ export async function normalizeMediaFile(
     const proc = spawn(ffmpegPath, args, {
       stdio: ["ignore", "pipe", "pipe"],
       signal,
-      timeout: 600_000, // 10 minutes
+      timeout: 0, // must complete naturally; cancel via AbortSignal
     })
 
     let stderrBuffer = ""

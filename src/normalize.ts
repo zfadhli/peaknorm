@@ -1,14 +1,13 @@
-import { renameSync, unlinkSync } from "node:fs"
+import { renameSync, statSync, unlinkSync } from "node:fs"
 import { basename, join, resolve } from "node:path"
 import { performance } from "node:perf_hooks"
 import type { BackupResult } from "./backup.ts"
-import { createBackup, deleteBackup, getFileSize, restoreBackup } from "./backup.ts"
+import { createBackup, deleteBackup, restoreBackup } from "./backup.ts"
 import { resolveOptions, tempOutputPath } from "./config.ts"
 import { NoMediaFilesError, NormalizeError } from "./errors.ts"
 import { detectFfmpeg, measureLoudness, normalizeMediaFile, probeMedia } from "./ffmpeg/index.ts"
-import { isDirectory, isFile } from "./fs.ts"
+import { getFileSize, isDirectory, isFile } from "./fs.ts"
 import { findMediaFiles } from "./media.ts"
-import { sortFileList } from "./sort.ts"
 import type {
   BatchResult,
   LoudnessMeasurement,
@@ -70,7 +69,7 @@ export async function normalizeFile(
     const dryOutput = resolved.output
       ? join(resolved.output, basename(inputPath))
       : tempOutputPath(inputPath)
-    resolved.onFileStart?.(inputPath, dryOutput)
+    resolved.onFileStart?.(inputPath, dryOutput, 1, 1)
     const result: NormalizeResult = {
       input: inputPath,
       output: dryOutput,
@@ -92,7 +91,7 @@ export async function normalizeFile(
   const useTemp = outputDir === null
   const outputPath = outputDir ?? tempOutputPath(inputPath)
 
-  resolved.onFileStart?.(inputPath, outputPath)
+  resolved.onFileStart?.(inputPath, outputPath, 1, 1)
 
   // Create backup for in-place normalization
   let backupResult: ReturnType<typeof createBackup> | null = null
@@ -109,22 +108,62 @@ export async function normalizeFile(
     }
 
     // Measure loudness (Pass 1) — skipped in dynamic mode
+    // In album batch mode, uses the shared measurement computed from all files
     let measurement: LoudnessMeasurement | null = null
     if (!resolved.dynamic) {
-      measurement = await measureLoudness(
-        ffmpegPath,
-        inputPath,
-        resolved.loudness,
-        resolved.lra,
-        resolved.truePeak,
-        probe.duration,
-        resolved.signal ?? undefined,
-        (pct) => resolved.onFileProgress?.(basename(inputPath), pct, "analyzing"),
-      )
+      measurement =
+        resolved.sharedMeasurement ??
+        (await measureLoudness(
+          ffmpegPath,
+          inputPath,
+          resolved.loudness,
+          resolved.lra,
+          resolved.truePeak,
+          probe.duration,
+          resolved.signal ?? undefined,
+          (pct) => resolved.onFileProgress?.(basename(inputPath), pct, "analyzing"),
+        ))
 
       if (!measurement) {
         throw new NormalizeError(inputPath, "Failed to parse loudnorm measurement output")
       }
+    }
+
+    // lowerOnly: skip if already at or below the target loudness
+    if (
+      resolved.lowerOnly &&
+      measurement !== null &&
+      Number(measurement.inputI) <= resolved.loudness
+    ) {
+      // Clean up temp file if it was created, restore backup
+      if (useTemp) {
+        try {
+          unlinkSync(outputPath)
+        } catch {
+          // ignore
+        }
+        if (backupResult) {
+          try {
+            restoreBackup(backupResult, inputPath)
+          } catch {
+            // ignore
+          }
+        }
+      }
+      if (backupResult) {
+        deleteBackup(backupResult)
+      }
+      resolved.onFileProgress?.(basename(inputPath), 100, "normalizing")
+      const result: NormalizeResult = {
+        input: inputPath,
+        output: inputPath,
+        status: "skipped",
+        inputSizeBytes: inputSize,
+        outputSizeBytes: 0,
+        durationMs: Math.round(performance.now() - startTime),
+      }
+      resolved.onFileComplete?.(result)
+      return result
     }
 
     // Normalize audio (Pass 2) — null measurement = dynamic one-pass mode
@@ -208,16 +247,82 @@ export async function normalizeFolder(
   }
 
   // Sort files based on options
-  const sorted = sortFileList(files, resolved.sortBy, resolved.sortOrder)
+  const sorted =
+    resolved.sortBy === "name"
+      ? resolved.sortOrder === "asc"
+        ? files
+        : [...files].reverse()
+      : files
+          .map((f) => {
+            let mtime = 0
+            try {
+              mtime = statSync(f).mtimeMs
+            } catch {
+              // file may have been removed between discovery and sorting
+            }
+            return { path: f, mtime }
+          })
+          .sort((a, b) => (resolved.sortOrder === "asc" ? a.mtime - b.mtime : b.mtime - a.mtime))
+          .map((e) => e.path)
+
+  // Album batch mode: measure all files first, compute unified measurement
+  let sharedMeasurement: LoudnessMeasurement | null = null
+  if (resolved.batch && !resolved.dryRun && !resolved.dynamic) {
+    const ffmpegPath = detectFfmpeg(resolved.ffmpegPath)
+    const measurements: LoudnessMeasurement[] = []
+
+    for (const file of sorted) {
+      try {
+        const probe = await probeMedia(file, ffmpegPath, resolved.signal ?? undefined)
+        if (!probe.hasAudio) continue
+
+        const m = await measureLoudness(
+          ffmpegPath,
+          file,
+          resolved.loudness,
+          resolved.lra,
+          resolved.truePeak,
+          probe.duration,
+          resolved.signal ?? undefined,
+        )
+        if (m) measurements.push(m)
+      } catch {
+        // skip files that fail measurement in batch pre-scan
+      }
+    }
+
+    if (measurements.length > 0) {
+      // Compute average measurement across all files
+      const avg = (values: number[]) => values.reduce((a, b) => a + b, 0) / values.length
+
+      sharedMeasurement = {
+        inputI: String(avg(measurements.map((m) => Number(m.inputI)))),
+        inputLra: String(avg(measurements.map((m) => Number(m.inputLra)))),
+        inputTp: String(avg(measurements.map((m) => Number(m.inputTp)))),
+        inputThresh: String(avg(measurements.map((m) => Number(m.inputThresh)))),
+        offset: String(avg(measurements.map((m) => Number(m.offset)))),
+      }
+    }
+  }
+
+  // Pass shared measurement to normalizeFile via opts
+  const batchOpts: NormalizeOptions = sharedMeasurement ? { ...opts, sharedMeasurement } : opts
 
   const results: NormalizeResult[] = []
   let completed = 0
   let skipped = 0
   let errors = 0
 
-  for (const file of sorted) {
+  for (const [fileIndex, file] of sorted.entries()) {
+    // Wrap onFileStart to pass index/total for batch progress display
+    const fileOpts: NormalizeOptions = {
+      ...batchOpts,
+      onFileStart: (input: string, output: string) => {
+        batchOpts.onFileStart?.(input, output, fileIndex + 1, sorted.length)
+      },
+    }
     try {
-      const result = await normalizeFile(file, opts)
+      const result = await normalizeFile(file, fileOpts)
       results.push(result)
       if (result.status === "completed") completed++
       else if (result.status === "skipped") skipped++

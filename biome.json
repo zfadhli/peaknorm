@@ -23,16 +23,8 @@
     "enabled": true,
     "rules": {
       "preset": "recommended",
-      "correctness": {
-        "noUnusedVariables": "error",
-        "useExhaustiveDependencies": "warn",
-        "noSwitchDeclarations": "error"
-      },
-      "suspicious": {
-        "noExplicitAny": "warn"
-      },
       "style": {
-        "noNonNullAssertion": "warn"
+        "noNonNullAssertion": "off"
       }
     }
   },

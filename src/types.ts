@@ -1,6 +1,10 @@
 // ─── Public Types ──────────────────────────────────────
 
+export type PresetName = "music" | "podcast" | "streaming-video"
+
 export interface NormalizeOptions {
+  /** Named preset that sets loudness/LRA/truePeak defaults (overridden by individual options) */
+  preset?: PresetName
   /** Target loudness in LUFS (default: -14) */
   loudness?: number
   /** Loudness Range in LU (default: 7) */
@@ -25,14 +29,20 @@ export interface NormalizeOptions {
   dryRun?: boolean
   /** One-pass dynamic loudnorm (skips measurement, faster for long files) */
   dynamic?: boolean
+  /** Only reduce loudness, never amplify (skip if already below target) */
+  lowerOnly?: boolean
+  /** Album batch mode: measure all files first, then apply unified gain preserving relative loudness */
+  batch?: boolean
+  /** @internal Shared measurement for album batch mode (set by normalizeFolder, not user-facing) */
+  sharedMeasurement?: LoudnessMeasurement | null
   /** AbortSignal for cancellation */
   signal?: AbortSignal
   /** Sort order for batch processing: by name or modification time (default: "name") */
   sortBy?: "name" | "mtime"
   /** Sort direction for batch processing (default: "asc") */
   sortOrder?: "asc" | "desc"
-  /** Callback when a file starts processing */
-  onFileStart?: (input: string, output: string) => void
+  /** Callback when a file starts processing (index/total for batch progress) */
+  onFileStart?: (input: string, output: string, index: number, total: number) => void
   /** Callback for per-file progress (0–100, phase) */
   onFileProgress?: (file: string, percent: number, phase: NormalizePhase) => void
   /** Callback when a file completes processing */
@@ -96,10 +106,14 @@ export interface ResolvedOptions {
   ffmpegPath: string
   dryRun: boolean
   dynamic: boolean
+  lowerOnly: boolean
+  batch: boolean
+  /** Override measurement for album batch mode (set by normalizeFolder, not user-facing) */
+  sharedMeasurement: LoudnessMeasurement | null
   signal: AbortSignal | null
   sortBy: "name" | "mtime"
   sortOrder: "asc" | "desc"
-  onFileStart: ((input: string, output: string) => void) | null
+  onFileStart: ((input: string, output: string, index: number, total: number) => void) | null
   onFileProgress: ((file: string, percent: number, phase: NormalizePhase) => void) | null
   onFileComplete: ((result: NormalizeResult) => void) | null
   onFileError: ((input: string, error: Error) => void) | null

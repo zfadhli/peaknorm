@@ -1,10 +1,9 @@
 # peaknorm
 
 [![npm version](https://img.shields.io/npm/v/peaknorm?style=flat-square)](https://www.npmjs.com/package/peaknorm)
-[![CI](https://img.shields.io/github/actions/workflow/status/zfadhli/peaknorm/.github/workflows/ci.yml?style=flat-square)](https://github.com/zfadhli/peaknorm/actions)
+[![CI](https://img.shields.io/github/actions/workflow/status/zfadhli/peaknorm/ci.yml?style=flat-square)](https://github.com/zfadhli/peaknorm/actions)
 [![License](https://img.shields.io/npm/l/peaknorm?style=flat-square)](LICENSE)
 [![TypeScript](https://img.shields.io/badge/TypeScript-6-3178c6?style=flat-square&logo=typescript&logoColor=white)](https://www.typescriptlang.org)
-[![Bun](https://img.shields.io/badge/Bun-≥1.2-000?style=flat-square&logo=bun&logoColor=white)](https://bun.sh)
 
 **Normalize audio loudness in media files** using the EBU R128 standard via ffmpeg. Works with video files (video passthrough, audio re-encoded) and audio-only files.
 
@@ -17,6 +16,10 @@ npx peaknorm ./video.mp4
 ## Features
 
 - **EBU R128 two-pass loudnorm** — measures integrated loudness, LRA, and true peak, then applies linear normalization with precision
+- **One-pass dynamic mode** (`--dynamic`) — skip the measurement pass for extremely long files
+- **Album batch mode** (`--batch`) — measures all files first, applies unified gain preserving relative loudness
+- **Lower-only mode** (`--lower-only`) — only reduces loudness, never amplifies
+- **Named presets** (`--preset`) — music, podcast, or streaming-video presets for common loudness targets
 - **Video passthrough** — video stream is copied untouched (`-c:v copy`), only audio is re-encoded
 - **In-place processing** — overwrite originals safely; optional `.bak` / folder / suffix backup strategies
 - **Real-time progress** — per-file progress bar with phase labels (`Analyzing` / `Normalizing`) and percentage from ffmpeg
@@ -56,6 +59,18 @@ peaknorm ./input -o ./output
 # Custom loudness target, change audio codec
 peaknorm ./files -l -16 --audio-codec aac --audio-bitrate 128k
 
+# One-pass dynamic mode for very long files (skips measurement)
+peaknorm ./recording.mp4 --dynamic
+
+# Album batch mode: measure all files first, apply unified gain
+peaknorm ./album-folder --batch
+
+# Only reduce loudness, never amplify
+peaknorm ./loud-files --lower-only
+
+# Use a named preset (overridable by individual options)
+peaknorm ./video.mp4 --preset streaming-video
+
 # Preview without processing (no ffmpeg needed)
 peaknorm ./input --dry-run --verbose
 ```
@@ -75,6 +90,10 @@ peaknorm ./input --dry-run --verbose
   -e, --ext <ext>          File extensions to process (repeatable)
   --ffmpeg-path <path>     Custom ffmpeg binary path
   --dry-run                Preview without processing
+  --dynamic                One-pass dynamic loudnorm (skip measurement, faster for long files)
+  --lower-only             Only reduce loudness, never amplify (skip if already below target)
+  --batch                  Album mode: measure all files first, apply unified gain preserving relative loudness
+  --preset <name>          Named preset: music|podcast|streaming-video
   --sort-by <method>       Sort files by: name|mtime (default: name)
   --sort-order <dir>       Sort direction: asc|desc (default: asc)
   --verbose                Verbose output
@@ -142,6 +161,35 @@ const batch = await normalizeFolder("./library", {
 });
 ```
 
+### batch mode (album)
+
+```ts
+const batch = await normalizeFolder("./album", {
+  batch: true,
+  onFileProgress: (file, percent, phase) => {
+    console.log(`${file}: ${phase} ${percent}%`);
+  },
+});
+```
+
+### Presets
+
+```ts
+const batch = await normalize("./podcast-episode.mp3", {
+  preset: "podcast", // sets loudness=-16, lra=5, truePeak=-1, audioBitrate="96k"
+  // individual options override the preset:
+  loudness: -14,
+});
+```
+
+### lowerOnly
+
+```ts
+const result = await normalizeFile("./loud-track.wav", {
+  lowerOnly: true, // skip if already ≤ target loudness
+});
+```
+
 ### Cancellation
 
 ```ts
@@ -170,6 +218,12 @@ Each file goes through a three-stage pipeline:
 
 > [!TIP]
 > If the measured values contain `-inf` or `nan` (very quiet or silent content), peaknorm automatically falls back to dynamic loudnorm without `linear=true` or `measured_*` parameters.
+>
+> **Dynamic mode** (`--dynamic`) skips the Measure stage entirely — just one pass with `loudnorm` in dynamic mode. Useful for very long files where two-pass analysis takes too long.
+>
+> **Lower-only mode** (`--lower-only`) skips normalization when the measured loudness is already at or below the target — only reduces, never amplifies.
+>
+> **Album batch mode** (`--batch`) runs the Measure stage on all files first, then uses the average loudness to normalize each file with a unified gain, preserving relative track loudness.
 
 ### Backup strategies
 
@@ -199,6 +253,10 @@ On failure, the original is restored from the backup and partial output is delet
 | `extensions` | `string[]` | _(see below)_ | File extensions to process |
 | `ffmpegPath` | `string` | — | Custom ffmpeg binary path |
 | `dryRun` | `boolean` | `false` | Preview without processing |
+| `dynamic` | `boolean` | `false` | One-pass dynamic loudnorm (skip measurement) |
+| `lowerOnly` | `boolean` | `false` | Only reduce loudness, never amplify |
+| `batch` | `boolean` | `false` | Album batch mode: unified gain preserving relative loudness |
+| `preset` | `"music" \| "podcast" \| "streaming-video"` | — | Named preset for common configurations |
 | `sortBy` | `"name" \| "mtime"` | `"name"` | Sort files by name or modification time |
 | `sortOrder` | `"asc" \| "desc"` | `"asc"` | Sort direction |
 | `signal` | `AbortSignal` | — | Cancellation signal |
@@ -281,15 +339,16 @@ Customize with the `--ext` flag or `extensions` option.
 # Clone and install
 git clone https://github.com/zfadhli/peaknorm.git
 cd peaknorm
-bun install
+npm install -g @nubjs/nub  # or use your preferred Node.js toolkit
+nub install
 
 # Run the CLI from source
-bun run dev -- ./file.mp4 --dry-run
+nub run dev -- ./file.mp4 --dry-run
 
 # Development commands
-bun run check          # Lint + format check (Biome)
-bun run typecheck      # TypeScript type check (tsc --noEmit)
-bun run test           # Run unit tests
-bun run test:integration  # Integration tests (requires ffmpeg)
-bun run build          # Build dist/ via tsdown
+nub run check          # Lint + format check (Biome)
+nub run typecheck      # TypeScript type check (tsc --noEmit)
+nub run test           # Run unit tests
+nub run test:integration  # Integration tests (requires ffmpeg)
+nub run build          # Build dist/ via tsdown
 ```

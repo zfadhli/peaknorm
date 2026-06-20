@@ -14,7 +14,7 @@
     "forceConsistentCasingInFileNames": true,
 
     // --- Module Resolution ---
-    "types": ["bun-types"],
+    "types": ["node"],
     "allowImportingTsExtensions": true,
     "verbatimModuleSyntax": true,
     "esModuleInterop": true,

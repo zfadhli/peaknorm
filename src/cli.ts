@@ -1,6 +1,7 @@
-#!/usr/bin/env bun
+#!/usr/bin/env node
 import { readFileSync } from "node:fs"
-import { basename, resolve } from "node:path"
+import { basename, dirname, resolve } from "node:path"
+import { fileURLToPath } from "node:url"
 import { color, createCLI, createProgress } from "@zfadhli/koko-cli"
 import { PeaknormError } from "./errors.ts"
 import { detectFfmpeg } from "./ffmpeg/index.ts"
@@ -8,32 +9,12 @@ import { formatResult } from "./format.ts"
 import { normalize } from "./normalize.ts"
 import type { BackupStrategy, NormalizeResult } from "./types.ts"
 
-interface OptionMapping {
-  cliName: string
-  normalizeName: string
-  coerce?: (val: unknown) => unknown
-}
-
-const OPTION_MAPPINGS: OptionMapping[] = [
-  { cliName: "output", normalizeName: "output" },
-  { cliName: "loudness", normalizeName: "loudness", coerce: Number },
-  { cliName: "lra", normalizeName: "lra", coerce: Number },
-  { cliName: "truePeak", normalizeName: "truePeak", coerce: Number },
-  { cliName: "audioCodec", normalizeName: "audioCodec" },
-  { cliName: "audioBitrate", normalizeName: "audioBitrate" },
-  { cliName: "recursive", normalizeName: "recursive" },
-  { cliName: "ext", normalizeName: "extensions" },
-  { cliName: "ffmpegPath", normalizeName: "ffmpegPath" },
-  { cliName: "dryRun", normalizeName: "dryRun" },
-  { cliName: "dynamic", normalizeName: "dynamic" },
-  { cliName: "sortBy", normalizeName: "sortBy" },
-  { cliName: "sortOrder", normalizeName: "sortOrder" },
-]
-
 function getVersion(): string {
   try {
-    const dirname = import.meta.dirname ?? process.cwd()
-    const pkgPath = resolve(dirname, "../package.json")
+    const __dirname = import.meta.dirname
+      ? import.meta.dirname
+      : dirname(fileURLToPath(import.meta.url))
+    const pkgPath = resolve(__dirname, "../package.json")
     const pkg = JSON.parse(readFileSync(pkgPath, "utf-8")) as {
       version: string
     }
@@ -49,6 +30,10 @@ const cli = createCLI("peaknorm", getVersion()).description(
 
 cli.command("[input]", "File or folder to normalize", (cmd) => {
   cmd.option("-o, --output <dir>", "Output directory (default: same as input)")
+  cmd.option(
+    "--preset <name>",
+    "Named preset: music|podcast|streaming-video (overridden by individual options)",
+  )
   cmd.option("-l, --loudness <num>", "Target loudness in LUFS (default: -14)")
   cmd.option("--lra <num>", "Loudness range in LU (default: 7)")
   cmd.option("-tp, --true-peak <num>", "True peak limit in dBTP (default: -2)")
@@ -60,6 +45,11 @@ cli.command("[input]", "File or folder to normalize", (cmd) => {
   cmd.option("--ffmpeg-path <path>", "Custom ffmpeg binary path")
   cmd.option("--dry-run", "Preview without processing")
   cmd.option("--dynamic", "One-pass dynamic loudnorm (skip measurement, faster for long files)")
+  cmd.option(
+    "--batch",
+    "Album mode: measure all files first, apply unified gain preserving relative loudness",
+  )
+  cmd.option("--lower-only", "Only reduce loudness, never amplify (skip if already below target)")
   cmd.option("--sort-by <method>", "Sort files by: name|mtime (default: name)")
   cmd.option("--sort-order <dir>", "Sort direction: asc|desc (default: asc)")
   cmd.option("--verbose", "Verbose output")
@@ -87,20 +77,24 @@ cli.command("[input]", "File or folder to normalize", (cmd) => {
           ? (options.backup as BackupStrategy)
           : "copy"
 
-    // ─── Build options object via schema mapping ──────────
-    const cliOpts = options as Record<string, unknown>
-    const normalizeOpts: Record<string, unknown> = {}
-    for (const mapping of OPTION_MAPPINGS) {
-      const val = cliOpts[mapping.cliName]
-      if (val !== undefined) {
-        normalizeOpts[mapping.normalizeName] = mapping.coerce ? mapping.coerce(val) : val
-      }
+    // ─── Build options object ─────────────────────────────
+    // koko-cli names happen to match normalize names for everything
+    // except `ext` → `extensions`. Destructure the exceptions, pass through the rest.
+    const { input: _i, verbose: _v, backup: _b, ext: extRaw, ...passthrough } = options
+
+    const normalizeOpts: Record<string, unknown> = {
+      ...passthrough,
+      ...(extRaw !== undefined ? { extensions: extRaw } : {}),
+      backup,
     }
-    normalizeOpts.backup = backup
+    // Coerce string values from CLI flags to numbers
+    if (typeof normalizeOpts.loudness === "string")
+      normalizeOpts.loudness = Number(normalizeOpts.loudness)
+    if (typeof normalizeOpts.lra === "string") normalizeOpts.lra = Number(normalizeOpts.lra)
+    if (typeof normalizeOpts.truePeak === "string")
+      normalizeOpts.truePeak = Number(normalizeOpts.truePeak)
 
-    const verbose = cliOpts.verbose === true
-
-    if (verbose) {
+    if (options.verbose === true) {
       console.error(`Input: ${inputArg}`)
       console.error(`Options: ${JSON.stringify(normalizeOpts, null, 2)}`)
     }
@@ -112,27 +106,21 @@ cli.command("[input]", "File or folder to normalize", (cmd) => {
     try {
       const batch = await normalize(inputArg, {
         ...normalizeOpts,
-        onFileStart: (input) => {
+        onFileStart: (input, _output, index, total) => {
+          console.error(`\n[${index}/${total}] Processing: ${basename(input)}`)
           if (progressBar) {
             progressBar.stop()
           }
           progressBar = createProgress({
             total: 100,
-            clearOnComplete: true,
-            format: "{phase} [{bar}] {percentage}% | {file}",
+            format: "  {phase} [{bar}] {percentage}%",
           })
-          progressBar.update(0, {
-            phase: "Analyzing",
-            file: basename(input),
-          })
+          progressBar.update(0, { phase: "Analyzing" })
         },
         onFileProgress: (_file, percent, phase) => {
           if (!progressBar) return
           const label = phase === "analyzing" ? "Analyzing" : "Normalizing"
-          progressBar.update(percent, {
-            phase: label,
-            file: basename(_file),
-          })
+          progressBar.update(percent, { phase: label })
         },
         onFileComplete: (result: NormalizeResult) => {
           if (progressBar) {

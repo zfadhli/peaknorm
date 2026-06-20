@@ -1,6 +1,6 @@
 {
   "name": "peaknorm",
-  "version": "0.7.0",
+  "version": "0.8.0",
   "description": "Normalize audio in media files using EBU R128 (ffmpeg loudnorm)",
   "type": "module",
   "bin": {
@@ -24,7 +24,7 @@
     "LICENSE"
   ],
   "scripts": {
-    "dev": "bun src/cli.ts",
+    "dev": "nub src/cli.ts",
     "build": "tsdown",
     "prepublishOnly": "tsdown",
     "check": "biome check .",
@@ -34,8 +34,8 @@
     "lint": "biome lint .",
     "lint:write": "biome lint --write .",
     "typecheck": "tsc --noEmit",
-    "test": "bun test",
-    "test:integration": "bun test -- --integration"
+    "test": "vitest run",
+    "test:integration": "vitest run -- --integration"
   },
   "keywords": [
     "audio",
@@ -53,10 +53,11 @@
   },
   "devDependencies": {
     "@biomejs/biome": "^2.5.0",
-    "@types/bun": "latest",
+    "@types/node": "^22",
     "lefthook": "^2.1.9",
     "tsdown": "^0.22.2",
-    "typescript": "^6"
+    "typescript": "^6",
+    "vitest": "^3"
   },
   "peerDependencies": {
     "typescript": "^6"
@@ -65,6 +66,10 @@
     "@zfadhli/koko-cli": "^0.2.1"
   },
   "engines": {
-    "bun": ">=1.2"
+    "node": ">=22"
+  },
+  "allowBuilds": {
+    "esbuild": true,
+    "lefthook": true
   }
 }

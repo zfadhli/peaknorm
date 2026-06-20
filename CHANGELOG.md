@@ -1,5 +1,36 @@
 # Changelog
 
+## [0.8.0] - 2026-06-20
+
+### Added
+
+- **Presets** (`--preset music|podcast|streaming-video`) — three named
+  presets with optimized loudness/LRA/true-peak defaults for common use
+  cases. Individual options override preset values.
+- **Batch/album mode** (`--batch`) — measures all files first, then
+  applies unified gain preserving relative loudness between tracks.
+- **Lower-only mode** (`--lower-only`) — only reduce loudness, never
+  amplify; skips files already at or below the target loudness.
+- **Batch progress indicator** — `[N/Total] Processing: filename` shown
+  in CLI output before each file, with redundant filename removed from
+  the progress bar.
+- `LICENSE` file added to the repository.
+
+### Changed
+
+- **Runtime migrated from Bun to Node.js** — broader compatibility,
+  nub toolchain is Node-first. Vitest switched from `bun:test`. Sources
+  reformatted to 2-space indent (Biome default).
+- `onFileStart` callback now receives `index` and `total` parameters
+  for batch progress display (backward-compatible).
+
+### Removed
+
+- `sort.ts` — 5-line wrapper inlined into `normalize.ts` (dead code
+  elimination).
+- `probeWithFfmpeg` fallback — removed ~80 lines of speculative ffmpeg
+  stderr probing; ffprobe is now required.
+
 ## [0.7.0] - 2026-06-17
 
 ### Added
@@ -185,6 +216,7 @@
 - TypeScript 6, tsdown build, Biome linting, Bun test
 - GitHub Actions CI + publish workflows
 
+[0.8.0]: https://github.com/zfadhli/peaknorm/compare/v0.7.0...v0.8.0
 [0.7.0]: https://github.com/zfadhli/peaknorm/compare/v0.6.2...v0.7.0
 [0.6.2]: https://github.com/zfadhli/peaknorm/compare/v0.6.1...v0.6.2
 [0.6.1]: https://github.com/zfadhli/peaknorm/compare/v0.6.0...v0.6.1
