@@ -69,7 +69,7 @@ export async function normalizeFile(
     const dryOutput = resolved.output
       ? join(resolved.output, basename(inputPath))
       : tempOutputPath(inputPath)
-    resolved.onFileStart?.(inputPath, dryOutput)
+    resolved.onFileStart?.(inputPath, dryOutput, 1, 1)
     const result: NormalizeResult = {
       input: inputPath,
       output: dryOutput,
@@ -91,7 +91,7 @@ export async function normalizeFile(
   const useTemp = outputDir === null
   const outputPath = outputDir ?? tempOutputPath(inputPath)
 
-  resolved.onFileStart?.(inputPath, outputPath)
+  resolved.onFileStart?.(inputPath, outputPath, 1, 1)
 
   // Create backup for in-place normalization
   let backupResult: ReturnType<typeof createBackup> | null = null
@@ -313,9 +313,16 @@ export async function normalizeFolder(
   let skipped = 0
   let errors = 0
 
-  for (const file of sorted) {
+  for (const [fileIndex, file] of sorted.entries()) {
+    // Wrap onFileStart to pass index/total for batch progress display
+    const fileOpts: NormalizeOptions = {
+      ...batchOpts,
+      onFileStart: (input: string, output: string) => {
+        batchOpts.onFileStart?.(input, output, fileIndex + 1, sorted.length)
+      },
+    }
     try {
-      const result = await normalizeFile(file, batchOpts)
+      const result = await normalizeFile(file, fileOpts)
       results.push(result)
       if (result.status === "completed") completed++
       else if (result.status === "skipped") skipped++

@@ -106,27 +106,21 @@ cli.command("[input]", "File or folder to normalize", (cmd) => {
     try {
       const batch = await normalize(inputArg, {
         ...normalizeOpts,
-        onFileStart: (input) => {
+        onFileStart: (input, _output, index, total) => {
+          console.error(`\n[${index}/${total}] Processing: ${basename(input)}`)
           if (progressBar) {
             progressBar.stop()
           }
           progressBar = createProgress({
             total: 100,
-            clearOnComplete: true,
-            format: "{phase} [{bar}] {percentage}% | {file}",
+            format: "  {phase} [{bar}] {percentage}%",
           })
-          progressBar.update(0, {
-            phase: "Analyzing",
-            file: basename(input),
-          })
+          progressBar.update(0, { phase: "Analyzing" })
         },
         onFileProgress: (_file, percent, phase) => {
           if (!progressBar) return
           const label = phase === "analyzing" ? "Analyzing" : "Normalizing"
-          progressBar.update(percent, {
-            phase: label,
-            file: basename(_file),
-          })
+          progressBar.update(percent, { phase: label })
         },
         onFileComplete: (result: NormalizeResult) => {
           if (progressBar) {

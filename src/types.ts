@@ -41,8 +41,8 @@ export interface NormalizeOptions {
   sortBy?: "name" | "mtime"
   /** Sort direction for batch processing (default: "asc") */
   sortOrder?: "asc" | "desc"
-  /** Callback when a file starts processing */
-  onFileStart?: (input: string, output: string) => void
+  /** Callback when a file starts processing (index/total for batch progress) */
+  onFileStart?: (input: string, output: string, index: number, total: number) => void
   /** Callback for per-file progress (0–100, phase) */
   onFileProgress?: (file: string, percent: number, phase: NormalizePhase) => void
   /** Callback when a file completes processing */
@@ -113,7 +113,7 @@ export interface ResolvedOptions {
   signal: AbortSignal | null
   sortBy: "name" | "mtime"
   sortOrder: "asc" | "desc"
-  onFileStart: ((input: string, output: string) => void) | null
+  onFileStart: ((input: string, output: string, index: number, total: number) => void) | null
   onFileProgress: ((file: string, percent: number, phase: NormalizePhase) => void) | null
   onFileComplete: ((result: NormalizeResult) => void) | null
   onFileError: ((input: string, error: Error) => void) | null
