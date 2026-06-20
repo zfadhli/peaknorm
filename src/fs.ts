@@ -21,3 +21,14 @@ export function isDirectory(path: string): boolean {
     return false
   }
 }
+
+/**
+ * Get file size in bytes, or 0 if the file doesn't exist.
+ */
+export function getFileSize(path: string): number {
+  try {
+    return statSync(path).size
+  } catch {
+    return 0
+  }
+}

@@ -9,31 +9,6 @@ import { formatResult } from "./format.ts"
 import { normalize } from "./normalize.ts"
 import type { BackupStrategy, NormalizeResult } from "./types.ts"
 
-interface OptionMapping {
-  cliName: string
-  normalizeName: string
-  coerce?: (val: unknown) => unknown
-}
-
-const OPTION_MAPPINGS: OptionMapping[] = [
-  { cliName: "preset", normalizeName: "preset" },
-  { cliName: "output", normalizeName: "output" },
-  { cliName: "loudness", normalizeName: "loudness", coerce: Number },
-  { cliName: "lra", normalizeName: "lra", coerce: Number },
-  { cliName: "truePeak", normalizeName: "truePeak", coerce: Number },
-  { cliName: "audioCodec", normalizeName: "audioCodec" },
-  { cliName: "audioBitrate", normalizeName: "audioBitrate" },
-  { cliName: "recursive", normalizeName: "recursive" },
-  { cliName: "ext", normalizeName: "extensions" },
-  { cliName: "ffmpegPath", normalizeName: "ffmpegPath" },
-  { cliName: "dryRun", normalizeName: "dryRun" },
-  { cliName: "dynamic", normalizeName: "dynamic" },
-  { cliName: "batch", normalizeName: "batch" },
-  { cliName: "lowerOnly", normalizeName: "lowerOnly" },
-  { cliName: "sortBy", normalizeName: "sortBy" },
-  { cliName: "sortOrder", normalizeName: "sortOrder" },
-]
-
 function getVersion(): string {
   try {
     const __dirname = import.meta.dirname
@@ -102,20 +77,24 @@ cli.command("[input]", "File or folder to normalize", (cmd) => {
           ? (options.backup as BackupStrategy)
           : "copy"
 
-    // ─── Build options object via schema mapping ──────────
-    const cliOpts = options as Record<string, unknown>
-    const normalizeOpts: Record<string, unknown> = {}
-    for (const mapping of OPTION_MAPPINGS) {
-      const val = cliOpts[mapping.cliName]
-      if (val !== undefined) {
-        normalizeOpts[mapping.normalizeName] = mapping.coerce ? mapping.coerce(val) : val
-      }
+    // ─── Build options object ─────────────────────────────
+    // koko-cli names happen to match normalize names for everything
+    // except `ext` → `extensions`. Destructure the exceptions, pass through the rest.
+    const { input: _i, verbose: _v, backup: _b, ext: extRaw, ...passthrough } = options
+
+    const normalizeOpts: Record<string, unknown> = {
+      ...passthrough,
+      ...(extRaw !== undefined ? { extensions: extRaw } : {}),
+      backup,
     }
-    normalizeOpts.backup = backup
+    // Coerce string values from CLI flags to numbers
+    if (typeof normalizeOpts.loudness === "string")
+      normalizeOpts.loudness = Number(normalizeOpts.loudness)
+    if (typeof normalizeOpts.lra === "string") normalizeOpts.lra = Number(normalizeOpts.lra)
+    if (typeof normalizeOpts.truePeak === "string")
+      normalizeOpts.truePeak = Number(normalizeOpts.truePeak)
 
-    const verbose = cliOpts.verbose === true
-
-    if (verbose) {
+    if (options.verbose === true) {
       console.error(`Input: ${inputArg}`)
       console.error(`Options: ${JSON.stringify(normalizeOpts, null, 2)}`)
     }

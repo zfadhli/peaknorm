@@ -1,4 +1,4 @@
-import { copyFileSync, mkdirSync, renameSync, statSync, unlinkSync } from "node:fs"
+import { copyFileSync, mkdirSync, renameSync, unlinkSync } from "node:fs"
 import { basename, dirname, join } from "node:path"
 import { BackupError } from "./errors.ts"
 import type { BackupStrategy } from "./types.ts"
@@ -82,16 +82,5 @@ export function deleteBackup(backup: BackupResult): void {
     unlinkSync(backup.path)
   } catch {
     // Ignore cleanup failures
-  }
-}
-
-/**
- * Get file size in bytes.
- */
-export function getFileSize(path: string): number {
-  try {
-    return statSync(path).size
-  } catch {
-    return 0
   }
 }

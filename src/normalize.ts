@@ -1,14 +1,13 @@
-import { renameSync, unlinkSync } from "node:fs"
+import { renameSync, statSync, unlinkSync } from "node:fs"
 import { basename, join, resolve } from "node:path"
 import { performance } from "node:perf_hooks"
 import type { BackupResult } from "./backup.ts"
-import { createBackup, deleteBackup, getFileSize, restoreBackup } from "./backup.ts"
+import { createBackup, deleteBackup, restoreBackup } from "./backup.ts"
 import { resolveOptions, tempOutputPath } from "./config.ts"
 import { NoMediaFilesError, NormalizeError } from "./errors.ts"
 import { detectFfmpeg, measureLoudness, normalizeMediaFile, probeMedia } from "./ffmpeg/index.ts"
-import { isDirectory, isFile } from "./fs.ts"
+import { getFileSize, isDirectory, isFile } from "./fs.ts"
 import { findMediaFiles } from "./media.ts"
-import { sortFileList } from "./sort.ts"
 import type {
   BatchResult,
   LoudnessMeasurement,
@@ -248,19 +247,33 @@ export async function normalizeFolder(
   }
 
   // Sort files based on options
-  const sorted = sortFileList(files, resolved.sortBy, resolved.sortOrder)
+  const sorted =
+    resolved.sortBy === "name"
+      ? resolved.sortOrder === "asc"
+        ? files
+        : [...files].reverse()
+      : files
+          .map((f) => {
+            let mtime = 0
+            try {
+              mtime = statSync(f).mtimeMs
+            } catch {
+              // file may have been removed between discovery and sorting
+            }
+            return { path: f, mtime }
+          })
+          .sort((a, b) => (resolved.sortOrder === "asc" ? a.mtime - b.mtime : b.mtime - a.mtime))
+          .map((e) => e.path)
 
   // Album batch mode: measure all files first, compute unified measurement
   let sharedMeasurement: LoudnessMeasurement | null = null
   if (resolved.batch && !resolved.dryRun && !resolved.dynamic) {
     const ffmpegPath = detectFfmpeg(resolved.ffmpegPath)
     const measurements: LoudnessMeasurement[] = []
-    const probeResults: Map<string, number> = new Map()
 
     for (const file of sorted) {
       try {
         const probe = await probeMedia(file, ffmpegPath, resolved.signal ?? undefined)
-        probeResults.set(file, probe.duration)
         if (!probe.hasAudio) continue
 
         const m = await measureLoudness(

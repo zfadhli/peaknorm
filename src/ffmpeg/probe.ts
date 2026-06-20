@@ -1,40 +1,32 @@
-import { spawn } from "node:child_process"
+import { spawn, spawnSync } from "node:child_process"
+import { dirname, join } from "node:path"
 import { FfmpegError } from "../errors.ts"
 import type { MediaProbeResult } from "../types.ts"
-import { resolveFfprobePath } from "./detect.ts"
 
 /**
- * Probe a media file for its stream information.
- *
- * Uses `ffprobe` with JSON output for reliable structured parsing.
- * Falls back to parsing `ffmpeg -i` stderr if ffprobe is not available.
- *
- * ffprobe is part of the ffmpeg project and ships with every ffmpeg
- * installation, so the fallback is only for edge cases.
+ * Resolve the path to ffprobe from the given ffmpeg path.
+ * Tries same directory first, then falls back to PATH.
+ */
+function resolveFfprobe(ffmpegPath: string): string {
+  if (ffmpegPath !== "ffmpeg") {
+    const candidate = join(dirname(ffmpegPath), "ffprobe")
+    const result = spawnSync(candidate, ["-version"], { stdio: "pipe", timeout: 5_000 })
+    if (result.status === 0) return candidate
+  }
+  return "ffprobe"
+}
+
+/**
+ * Probe a media file for its stream information using ffprobe.
+ * ffprobe ships with every ffmpeg installation.
  */
 export async function probeMedia(
   inputPath: string,
   ffmpegPath: string,
   signal?: AbortSignal,
 ): Promise<MediaProbeResult> {
-  const ffprobePath = resolveFfprobePath(ffmpegPath)
+  const ffprobePath = resolveFfprobe(ffmpegPath)
 
-  if (ffprobePath) {
-    return probeWithFfprobe(ffprobePath, inputPath, signal)
-  }
-
-  // Fallback: parse ffmpeg -i stderr
-  return probeWithFfmpeg(ffmpegPath, inputPath, signal)
-}
-
-/**
- * Probe using ffprobe with JSON output — reliable, no race conditions.
- */
-async function probeWithFfprobe(
-  ffprobePath: string,
-  inputPath: string,
-  signal?: AbortSignal,
-): Promise<MediaProbeResult> {
   return new Promise<MediaProbeResult>((resolve, reject) => {
     const proc = spawn(
       ffprobePath,
@@ -74,7 +66,6 @@ async function probeWithFfprobe(
         }
 
         const duration = data.format?.duration ? Number.parseFloat(data.format.duration) : 0
-
         const hasVideo = data.streams?.some((s) => s.codec_type === "video") ?? false
         const hasAudio = data.streams?.some((s) => s.codec_type === "audio") ?? false
 
@@ -85,84 +76,6 @@ async function probeWithFfprobe(
             `Failed to parse ffprobe output: ${err instanceof Error ? err.message : String(err)}`,
           ),
         )
-      }
-    })
-  })
-}
-
-/**
- * Fallback probe using `ffmpeg -i` stderr parsing.
- * Used when ffprobe is not available.
- */
-async function probeWithFfmpeg(
-  ffmpegPath: string,
-  inputPath: string,
-  signal?: AbortSignal,
-): Promise<MediaProbeResult> {
-  return new Promise<MediaProbeResult>((resolve, reject) => {
-    const isMov = /\.(mp4|mov|m4a|m4v|3gp|3g2)$/i.test(inputPath)
-    const proc = spawn(
-      ffmpegPath,
-      [
-        "-hide_banner",
-        ...(isMov ? ["-ignore_editlist", "1"] : []),
-        "-i",
-        inputPath,
-        "-f",
-        "null",
-        "-",
-      ],
-      {
-        stdio: ["ignore", "pipe", "pipe"],
-        signal,
-        timeout: 30_000,
-      },
-    )
-
-    let stderr = ""
-    let resolved = false
-
-    function tryResolve(): void {
-      if (resolved) return
-      const hasDuration = /Duration:\s*\d+:\d+:\d+\.\d+/.test(stderr)
-      const hasStreams = /Stream #/.test(stderr)
-      if (hasDuration && hasStreams) {
-        resolved = true
-        const durMatch = stderr.match(/Duration:\s*(\d+):(\d+):(\d+)\.(\d+)/)
-        const duration = durMatch
-          ? Number(durMatch[1]) * 3600 + Number(durMatch[2]) * 60 + Number(durMatch[3])
-          : 0
-        const hasVideo = /Stream.*Video:/i.test(stderr)
-        const hasAudio = /Stream.*Audio:/i.test(stderr)
-        proc.kill("SIGTERM")
-        resolve({ hasVideo, hasAudio, duration })
-      }
-    }
-
-    proc.stdout?.on("data", () => {
-      // discard stdout
-    })
-
-    proc.stderr?.on("data", (chunk: Buffer) => {
-      stderr += chunk.toString("utf-8")
-      tryResolve()
-    })
-
-    proc.on("error", (err) => {
-      if (!resolved) reject(err)
-    })
-
-    proc.on("close", () => {
-      if (!resolved) {
-        // ffmpeg finished before we killed it, or file has no duration
-        const durMatch = stderr.match(/Duration:\s*(\d+):(\d+):(\d+)\.(\d+)/)
-        const duration = durMatch
-          ? Number(durMatch[1]) * 3600 + Number(durMatch[2]) * 60 + Number(durMatch[3])
-          : 0
-        const hasVideo = /Stream.*Video:/i.test(stderr)
-        const hasAudio = /Stream.*Audio:/i.test(stderr)
-        resolved = true
-        resolve({ hasVideo, hasAudio, duration })
       }
     })
   })

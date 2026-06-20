@@ -102,14 +102,14 @@ describe("backup", () => {
   })
 
   it("returns file size", async () => {
-    const { getFileSize } = await import("../src/backup.ts")
+    const { getFileSize } = await import("../src/fs.ts")
     const filePath = createTestFile("test.mp4")
     const size = getFileSize(filePath)
     expect(size).toBeGreaterThan(0)
   })
 
   it("returns 0 for non-existent file", async () => {
-    const { getFileSize } = await import("../src/backup.ts")
+    const { getFileSize } = await import("../src/fs.ts")
     const size = getFileSize("/nonexistent/file.mp4")
     expect(size).toBe(0)
   })

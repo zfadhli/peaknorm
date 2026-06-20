@@ -17,16 +17,10 @@ export function formatResult(result: NormalizeResult): string[] {
       const sizeChanged =
         result.inputSizeBytes !== result.outputSizeBytes && result.outputSizeBytes > 0
 
-      let sizePart: string
-      if (!isInPlace) {
-        const outMB = (result.outputSizeBytes / 1024 / 1024).toFixed(1)
-        sizePart = `  size: ${inMB}MB → ${outMB}MB`
-      } else if (sizeChanged) {
-        const outMB = (result.outputSizeBytes / 1024 / 1024).toFixed(1)
-        sizePart = `  size: ${inMB}MB → ${outMB}MB`
-      } else {
-        sizePart = `  size: ${inMB}MB`
-      }
+      const showArrow = !isInPlace || sizeChanged
+      const sizePart = showArrow
+        ? `  size: ${inMB}MB → ${(result.outputSizeBytes / 1024 / 1024).toFixed(1)}MB`
+        : `  size: ${inMB}MB`
 
       lines.push("[completed]")
       lines.push(`  filename: ${result.input}`)
