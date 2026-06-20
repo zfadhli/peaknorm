@@ -3,6 +3,7 @@ dist/
 tmp/
 *.tsbuildinfo
 bun.lock
+lock.yaml
 *.bak
 *.peaknorm-tmp.*
 *.normalized.*
@@ -20,3 +21,4 @@ input/
 .DS_Store
 Thumbs.db
 .opencode/plans/
+/tmp

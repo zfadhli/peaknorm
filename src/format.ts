@@ -1,4 +1,4 @@
-import type { NormalizeResult } from "./types.ts";
+import type { NormalizeResult } from "./types.ts"
 
 /**
  * Format a NormalizeResult into an array of lines for display.
@@ -7,44 +7,43 @@ import type { NormalizeResult } from "./types.ts";
  * The caller is responsible for output (console.error, file, etc.).
  */
 export function formatResult(result: NormalizeResult): string[] {
-	const lines: string[] = [];
-	const time = `  time taken: ${(result.durationMs / 1000).toFixed(1)}s`;
+  const lines: string[] = []
+  const time = `  time taken: ${(result.durationMs / 1000).toFixed(1)}s`
 
-	switch (result.status) {
-		case "completed": {
-			const inMB = (result.inputSizeBytes / 1024 / 1024).toFixed(1);
-			const isInPlace = result.input === result.output;
-			const sizeChanged =
-				result.inputSizeBytes !== result.outputSizeBytes &&
-				result.outputSizeBytes > 0;
+  switch (result.status) {
+    case "completed": {
+      const inMB = (result.inputSizeBytes / 1024 / 1024).toFixed(1)
+      const isInPlace = result.input === result.output
+      const sizeChanged =
+        result.inputSizeBytes !== result.outputSizeBytes && result.outputSizeBytes > 0
 
-			let sizePart: string;
-			if (!isInPlace) {
-				const outMB = (result.outputSizeBytes / 1024 / 1024).toFixed(1);
-				sizePart = `  size: ${inMB}MB → ${outMB}MB`;
-			} else if (sizeChanged) {
-				const outMB = (result.outputSizeBytes / 1024 / 1024).toFixed(1);
-				sizePart = `  size: ${inMB}MB → ${outMB}MB`;
-			} else {
-				sizePart = `  size: ${inMB}MB`;
-			}
+      let sizePart: string
+      if (!isInPlace) {
+        const outMB = (result.outputSizeBytes / 1024 / 1024).toFixed(1)
+        sizePart = `  size: ${inMB}MB → ${outMB}MB`
+      } else if (sizeChanged) {
+        const outMB = (result.outputSizeBytes / 1024 / 1024).toFixed(1)
+        sizePart = `  size: ${inMB}MB → ${outMB}MB`
+      } else {
+        sizePart = `  size: ${inMB}MB`
+      }
 
-			lines.push("[completed]");
-			lines.push(`  filename: ${result.input}`);
-			lines.push(sizePart);
-			lines.push(time);
-			break;
-		}
-		case "skipped":
-			lines.push("[skipped]");
-			lines.push(`  filename: ${result.input}`);
-			break;
-		case "error":
-			lines.push("[error]");
-			lines.push(`  filename: ${result.input}`);
-			lines.push(`  error: ${result.error ?? "Unknown error"}`);
-			break;
-	}
+      lines.push("[completed]")
+      lines.push(`  filename: ${result.input}`)
+      lines.push(sizePart)
+      lines.push(time)
+      break
+    }
+    case "skipped":
+      lines.push("[skipped]")
+      lines.push(`  filename: ${result.input}`)
+      break
+    case "error":
+      lines.push("[error]")
+      lines.push(`  filename: ${result.input}`)
+      lines.push(`  error: ${result.error ?? "Unknown error"}`)
+      break
+  }
 
-	return lines;
+  return lines
 }

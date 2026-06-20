@@ -1,6 +1,7 @@
-#!/usr/bin/env bun
+#!/usr/bin/env node
 import { readFileSync } from "node:fs"
-import { basename, resolve } from "node:path"
+import { basename, dirname, resolve } from "node:path"
+import { fileURLToPath } from "node:url"
 import { color, createCLI, createProgress } from "@zfadhli/koko-cli"
 import { PeaknormError } from "./errors.ts"
 import { detectFfmpeg } from "./ffmpeg/index.ts"
@@ -32,8 +33,10 @@ const OPTION_MAPPINGS: OptionMapping[] = [
 
 function getVersion(): string {
   try {
-    const dirname = import.meta.dirname ?? process.cwd()
-    const pkgPath = resolve(dirname, "../package.json")
+    const __dirname = import.meta.dirname
+      ? import.meta.dirname
+      : dirname(fileURLToPath(import.meta.url))
+    const pkgPath = resolve(__dirname, "../package.json")
     const pkg = JSON.parse(readFileSync(pkgPath, "utf-8")) as {
       version: string
     }

@@ -1,16 +1,17 @@
-import { afterEach, beforeEach, describe, expect, it, test } from "bun:test"
+import { spawnSync } from "node:child_process"
 import { existsSync, mkdirSync, rmSync, writeFileSync } from "node:fs"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
+import { afterEach, beforeEach, describe, expect, it, test } from "vitest"
 
 const testDir = join(tmpdir(), "peaknorm-test-normalize")
 
 function hasFfmpeg(): boolean {
   try {
-    const result = Bun.spawnSync(["ffmpeg", "-version"], {
+    const result = spawnSync("ffmpeg", ["-version"], {
       timeout: 5000,
     })
-    return result.exitCode === 0
+    return result.status === 0
   } catch {
     return false
   }
@@ -126,8 +127,8 @@ describe("findMediaFiles", () => {
     const files = findMediaFiles(join(testDir, "videos"), [".mp4", ".mp3"], false)
 
     expect(files).toHaveLength(2)
-    expect(files[0]).toEndWith("a.mp4")
-    expect(files[1]).toEndWith("b.mp3")
+    expect(files[0]!.endsWith("a.mp4")).toBe(true)
+    expect(files[1]!.endsWith("b.mp3")).toBe(true)
   })
 
   it("respects recursive flag", async () => {
@@ -170,8 +171,7 @@ describe("integration", () => {
 
     // Generate a small test video using ffmpeg
     const inputFile = join(testDir, "input.mp4")
-    const genResult = Bun.spawnSync([
-      ffmpegPath,
+    const genResult = spawnSync(ffmpegPath, [
       "-y",
       "-f",
       "lavfi",
@@ -188,7 +188,7 @@ describe("integration", () => {
       "-shortest",
       inputFile,
     ])
-    if (genResult.exitCode !== 0) {
+    if (genResult.status !== 0) {
       throw new Error(`Failed to create test video: ${genResult.stderr.toString()}`)
     }
 
@@ -204,8 +204,7 @@ describe("integration", () => {
 
     // Generate a test audio file (sine tone)
     const inputFile = join(testDir, "test_sine.wav")
-    const genResult = Bun.spawnSync([
-      ffmpegPath,
+    const genResult = spawnSync(ffmpegPath, [
       "-y",
       "-f",
       "lavfi",
@@ -213,7 +212,7 @@ describe("integration", () => {
       "sine=frequency=440:duration=2",
       inputFile,
     ])
-    if (genResult.exitCode !== 0) {
+    if (genResult.status !== 0) {
       throw new Error(`Failed to create test audio: ${genResult.stderr.toString()}`)
     }
 
@@ -232,15 +231,7 @@ describe("integration", () => {
 
     // Generate test audio
     const inputFile = join(testDir, "test_norm.wav")
-    await Bun.spawnSync([
-      ffmpegPath,
-      "-y",
-      "-f",
-      "lavfi",
-      "-i",
-      "sine=frequency=440:duration=1",
-      inputFile,
-    ])
+    spawnSync(ffmpegPath, ["-y", "-f", "lavfi", "-i", "sine=frequency=440:duration=1", inputFile])
 
     const outputFile = join(testDir, "test_norm_out.wav")
     const opts = {
