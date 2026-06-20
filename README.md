@@ -16,6 +16,10 @@ npx peaknorm ./video.mp4
 ## Features
 
 - **EBU R128 two-pass loudnorm** — measures integrated loudness, LRA, and true peak, then applies linear normalization with precision
+- **One-pass dynamic mode** (`--dynamic`) — skip the measurement pass for extremely long files
+- **Album batch mode** (`--batch`) — measures all files first, applies unified gain preserving relative loudness
+- **Lower-only mode** (`--lower-only`) — only reduces loudness, never amplifies
+- **Named presets** (`--preset`) — music, podcast, or streaming-video presets for common loudness targets
 - **Video passthrough** — video stream is copied untouched (`-c:v copy`), only audio is re-encoded
 - **In-place processing** — overwrite originals safely; optional `.bak` / folder / suffix backup strategies
 - **Real-time progress** — per-file progress bar with phase labels (`Analyzing` / `Normalizing`) and percentage from ffmpeg
@@ -54,6 +58,18 @@ peaknorm ./input -o ./output
 
 # Custom loudness target, change audio codec
 peaknorm ./files -l -16 --audio-codec aac --audio-bitrate 128k
+
+# One-pass dynamic mode for very long files (skips measurement)
+peaknorm ./recording.mp4 --dynamic
+
+# Album batch mode: measure all files first, apply unified gain
+peaknorm ./album-folder --batch
+
+# Only reduce loudness, never amplify
+peaknorm ./loud-files --lower-only
+
+# Use a named preset (overridable by individual options)
+peaknorm ./video.mp4 --preset streaming-video
 
 # Preview without processing (no ffmpeg needed)
 peaknorm ./input --dry-run --verbose
@@ -145,6 +161,35 @@ const batch = await normalizeFolder("./library", {
 });
 ```
 
+### batch mode (album)
+
+```ts
+const batch = await normalizeFolder("./album", {
+  batch: true,
+  onFileProgress: (file, percent, phase) => {
+    console.log(`${file}: ${phase} ${percent}%`);
+  },
+});
+```
+
+### Presets
+
+```ts
+const batch = await normalize("./podcast-episode.mp3", {
+  preset: "podcast", // sets loudness=-16, lra=5, truePeak=-1, audioBitrate="96k"
+  // individual options override the preset:
+  loudness: -14,
+});
+```
+
+### lowerOnly
+
+```ts
+const result = await normalizeFile("./loud-track.wav", {
+  lowerOnly: true, // skip if already ≤ target loudness
+});
+```
+
 ### Cancellation
 
 ```ts
@@ -173,6 +218,12 @@ Each file goes through a three-stage pipeline:
 
 > [!TIP]
 > If the measured values contain `-inf` or `nan` (very quiet or silent content), peaknorm automatically falls back to dynamic loudnorm without `linear=true` or `measured_*` parameters.
+>
+> **Dynamic mode** (`--dynamic`) skips the Measure stage entirely — just one pass with `loudnorm` in dynamic mode. Useful for very long files where two-pass analysis takes too long.
+>
+> **Lower-only mode** (`--lower-only`) skips normalization when the measured loudness is already at or below the target — only reduces, never amplifies.
+>
+> **Album batch mode** (`--batch`) runs the Measure stage on all files first, then uses the average loudness to normalize each file with a unified gain, preserving relative track loudness.
 
 ### Backup strategies
 

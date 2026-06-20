@@ -21,7 +21,7 @@ nub run dev -- ./file.mp4 --dry-run   # CLI from TS source
 |---------|---------|-------------------|
 | Install | `nub install` | exit 0 |
 | Typecheck | `nub run typecheck` (`tsc --noEmit`) | exit 0, no errors |
-| Tests | `nub run test` (`vitest run`) | 34 pass |
+| Tests | `nub run test` (`vitest run`) | 29 pass |
 | Integration | `nub run test:integration` | skips if no ffmpeg |
 | Lint | `nub run check` (`biome check .`) | exit 0 |
 | Build | `nub run build` (`tsdown`) | 8 files in dist/ |
@@ -45,7 +45,6 @@ src/
 │   └── index.ts        # Re-exports
 ├── format.ts           # Result formatting for CLI
 ├── media.ts            # Directory walk filter
-├── sort.ts             # File list sorting
 ├── fs.ts               # File system helpers
 └── index.ts            # Public API exports
 ```

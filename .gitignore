@@ -21,4 +21,4 @@ input/
 .DS_Store
 Thumbs.db
 .opencode/plans/
-/tmp
+.tmp
